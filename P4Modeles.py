@@ -2,7 +2,12 @@
 import abc
 from dataclasses import dataclass, field, asdict
 import datetime
-from pprint import pprint
+#from pprint import pprint
+from tinydb import TinyDB, Query
+
+db = TinyDB('db.json')
+
+
 
 
 @dataclass
@@ -17,12 +22,20 @@ class Player(Model):
     name : str = field(default = "John")
     firstname : str = field(default = "Doe")
     birthdate : datetime = field(default =datetime.datetime.strptime("05/06/1980", "%d/%m/%Y"))
-    gender : str = field(default = "h/f") # à convertir en Mr ou Mme dans le __str__
+    gender : str = field(default = "h") # à convertir en Mr ou Mme dans le __str__
     rating : int = field (default = 0)
 
 
     def __str__(self): # comment transformer h en monsieur et f en madame dans le str?
-        return f"{self.gender},{self.name}, {self.firstname}, {self.birthdate.strftime('%d/%m/%Y')},{self.rating}"
+        if self.gender == "h":
+            titre = "Monsieur"
+            birthdate_indication = "né le"
+            ranking_indication = "classé"
+        else :
+            titre = "Madame"
+            birthdate_indication = "née le"
+            ranking_indication = "classée"
+        return f"{titre} {self.firstname} {self.name}, {birthdate_indication} {self.birthdate.strftime('%d/%m/%Y')},{ranking_indication} {self.rating}"
   
     def player_serialization(self) -> dict : # en fait méthode save (?)
         # dataclasses.asdict(instance_de_player) devrait pour passer le joueur à la db sous forme de dict
@@ -43,8 +56,14 @@ class Tournament(Model):
     description : str = field(default= " ")
 
     def __str__(self):
-        return f"{self.name},{self.location}, {self.dates.strftime('%d/%m/%Y')}, {self.players},{self.number_of_rounds},\
-        {self.rounds},{self.timecontrol}, {self.description}"
+        return f"{self.name},{self.location},{self.dates.strftime('%d/%m/%Y')},\
+{self.players},{self.number_of_rounds},{self.rounds},{self.timecontrol},{self.description}"
+
+        # Pour amélioration, utiliser propriété de dataclasses :
+        # essayer : for info in dataclasses.fields(Tournament): return str(info)
+        # ou quelque chose comme ça
+        
+    
 
 @dataclass
 class Round(Model):
@@ -63,7 +82,7 @@ class Round(Model):
 
     def create_list_by_rating(self): # à revoir pour dataclass _ cf order = True ou .fields()
         """tri les joueurs du tournoi par classement/rang"""
-        players_by_rating = sorted(self._players, key=lambda k: k["rang"], reverse=True)   
+        players_by_rating = sorted(self._players, key=lambda k: k["rang"], reverse=True)
         return players_by_rating
 
     def create_pairs_round1(self): 
@@ -104,3 +123,37 @@ class Match: # à garder ou pas?
     def record_score(self, score_x, score_y):
         """ permet de saisir les scores des 2 joueurs du match à la fin de la partie et les ajoute aux listes"""
         pass
+
+
+if __name__ == "__main__":
+
+    print("\n\n----------Essais sur les modèles de training ----------")
+    print("\n----------Essais sur Player :----------\n")
+
+    print(Player)
+
+    player0 = Player()
+    print(player0)
+
+    player1 = Player("ATOME", "Adam", datetime.datetime.strptime("01/02/1972", "%d/%m/%Y"), "h", 2001 )
+    print(player1)
+
+    print(f"\n__repr__ de player1 : {repr(player1)}\n")
+
+    typeof = type(player1.birthdate)
+    print(f"Type de player1.birthdate : {typeof}")
+
+    print("\n\n----------Test de la fonction dataclasses.asdict :----------\n") 
+
+    print(asdict(player1))
+
+    print("\n\n----------Essais sur Tournament :----------\n")
+
+    print(Tournament)
+
+    tournament0 = Tournament()
+    print("\n----------Voici la représentation du tournoi test, listes à compléter:----------\n")
+    print(f"\n__repr__ de tournament0 : {repr(tournament0)}\n")
+    print("\n----------Et voici son str :----------\n")
+    print(tournament0)
+

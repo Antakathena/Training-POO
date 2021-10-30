@@ -1,31 +1,45 @@
 import abc
+import P4Controleur
+from Menus import Menu
 
 
+# Pour le test, j'importe les vues avant de résoudre les problèmes d'imports croisés
+    
+ 
 class View(abc.ABC):
     """ méthode appelée par un contrôleur, affiche des choses à l'écran, les renvoie au contrôleur"""
     def __init__(self, name):
         self.name = name
 
-    def show_title(self, name):
-        self.name = name(str)
-        title = name.upper()
-        print(f"----------{title}----------")
+# en fait c'est plutôt un décorateur ça : faire décorateur vue qui montre titre, explique "q" et montre la transition?
+    def show_title(self):
+        title = self.name.upper()
+        print(f"-----------{title}-----------")
 
-    def bind(self, controller):
-        self.controller = controller
+    @abc.abstractmethod
+    def show(self):
+        self.show_title()
+      
+class Welcome(View):
+    def __init__(self, name = "Outil de gestion de tournois d'échecs"):
+        super().__init__(name)
 
-    def draw(self):
-        raise NotImplementedError
+    def show(self):
+        self.show_title()    
+        print ("Bienvenue")
 
 class MenuView(View):
-    """with choices : nous avons les menus tournoi, lancer nouveau tournoi, joueur, rapport"""
-    def __init__(self, start=1):
-        self.start = start
-        super().__init__("MenuView")
+    """Determine l'affichage des menus tournoi, lancer nouveau tournoi, joueur,..."""
+    def __init__(self, menu: Menu):
+        super().__init__(menu.menu_name)
+        self.menu: Menu = menu
 
-    def draw(self):
-        for i, choice in enumerate(self.controller.choices, start=self.start):
-            choice.itemview.draw(position=i)
+    def show(self):
+        super().show()
+        for i, choice in enumerate(self.menu.menu_choice, start=self.menu.start):
+            print(f"{i}) {choice[0]}")
+            # choice.itemview.show(position=i)
+        print("q) Quitter")
         return input("Votre choix : ")
 
 class FormView(View):
@@ -35,8 +49,8 @@ class FormView(View):
         self.start = start
         super().__init__("FormView")
 
-    def draw(self):
-        print("def draw pour afficher les formulaires à implémenter")
+    def show(self):
+        print("def show pour afficher les formulaires à implémenter")
 
 class ReportView(View):
     """ Défini comment les infos des rapports apparaissent à l'utilisateur"""
@@ -51,3 +65,10 @@ class TournamentView :
     """ Défini comment les infos sur les tournois apparaissent à l'utilisateur"""
     # sauf si c'est dans le modèle
     pass
+
+if __name__ == "__main__":
+    print("\n\n----------Essais sur les vues de training ----------")
+    print("\n----------Essais sur Menus :----------\n")
+
+    welcome = Welcome
+    print(welcome)

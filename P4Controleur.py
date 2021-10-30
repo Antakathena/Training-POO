@@ -1,17 +1,66 @@
 import abc
 import datetime
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
+from typing import Tuple
 
-from P4Modeles import Player,Tournament 
-from P4Vues import FormView, MenuView, ReportView
+from P4Modeles import Player,Tournament
+from P4Vues import MenuView 
 
-# listes de choix de chaque menu :
-mainmenu_choices = ["Menu Tournois", "Menu Joueurs","Menu Rapports"]
-playermenu_choices = ["Entrer un nouveau joueur","Modifier un joueur","Menu rapports","Retourner au menu principal"]
-tournamentmenu_choices = ["Entrer un nouveau tournoi","Modifier un tournoi","Lancer le tournoi","Retourner au menu principal"]
-launch_newtournament = ["Lancer le tournoi","Retourner au menu principal"]
-reportmenu1_choices = ["Joueurs par ordre alphabétique", "Joueurs par classement", "Liste des tournois", "Retourner au menu principal"]
-reportmenu2_choices = ["Joueurs du tournoi par ordre alphabétique", "Joueurs du tournoi par classement", "liste des tours", "liste des matchs"]
+
+# listes de choix de chaque menu (faire fichier exterieur?) :
+MENU_CHOICES = {
+    "menu principal" : ("Menu Tournois", "Menu Joueurs","Menu Rapports"),
+    "menu joueurs":("Entrer un nouveau joueur","Modifier un joueur","Menu rapports","Retourner au menu principal"),
+    "menu tournois":("Entrer un nouveau tournoi","Modifier un tournoi","Lancer le tournoi","Retourner au menu principal"),
+    "menu lancer le tournoi":("Lancer le tournoi","Retourner au menu principal"),
+    "menu lancer le round":("Lancer le round","Retourner au menu principal"),
+    "menu des rapports (joueurs)":("Joueurs par ordre alphabétique", "Joueurs par classement", "Liste des tournois", "Retourner au menu principal"),
+    "menu des rapports (tournois)":("Joueurs du tournoi par ordre alphabétique", "Joueurs du tournoi par classement", "liste des tours", "liste des matchs")
+    }
+
+
+@dataclass
+class Menu(abc.ABC):
+    menu_name : str
+    menu_choice : tuple = field(default_factory=tuple)
+    menu_view : MenuView = field(default=None)
+    start : int = 1
+
+    def __post_init__(self, menu_name):
+        menu_choice = MENU_CHOICES.get(menu_name)
+
+@dataclass
+class MenuFactory(Menu):
+    """
+    NB : objet_menu = MenuFactory(nom du menu, [
+    liste de couples (("Titre option", Controleur/action)])
+
+    """
+    menu_name : str
+    menu_choice : tuple = field(default_factory=tuple)
+    menu_view : MenuView = None
+    start : int = 1
+
+    def __post_init__(self, menu_name):
+        menu_choice = MENU_CHOICES.get(menu_name)
+
+
+    def __call__(self, **kwargs) -> Menu:
+        return Menu(self.menu_name, self.menu_choice, self.menu_view, self.start, **kwargs)
+
+    #def make(self, **kwargs) -> Menu:
+    #    return Menu(self.name, self.choices, self.menu_view, self.start, **kwargs)
+
+MENU_FACTORIES = {
+    "menu principal": Menu(menu_name="menu principal"),
+    "menu joueurs": Menu("menu joueurs"),
+    "menu tournois": Menu("menu tournois"),
+    "menu lancer le tournoi": Menu("menu lancer le tournoi"),
+    "menu lancer le round": Menu("menu lancer le round"),
+    "menu des rapports (joueurs)": Menu("menu des rapports (joueurs)"),
+    "menu des rapports (tournois)": Menu("menu des rapports (tournois)")
+    }
+# MainMenu(), PlayerMenu(), TournamentMenu(), StartNewTournament(), StartNewRound(), ReportMenu1(), ReportMenu2()
 
 
 class Controller(abc.ABC):
@@ -24,14 +73,17 @@ class Controller(abc.ABC):
         self.tournament = Tournament()
         # vues
         self.menuview = MenuView()
-        self.formview = FormView()
-        self.reportview = ReportView()
-
-    def run(self):
-        pass
+        ##self.formview = FormView()
+        ##self.reportview = ReportView()
     def add_new(self) :
         raise NotImplementedError
     def change(self):
+        # on affiche la liste de instances qu'on peut changer
+        # on demande à l'utilisateur de faire un choix parmi ces choix
+        # et ICI on créé le FormManager pour changer l'item => cas n°1 sans Factory Pattern
+        # Si on avait eu une usine :
+        # on appelle le make() de l'usine AVEC le bon choix, et l'usine retourne le formulaire adapté au bon choix
+        # éventuellement quand y aura TinyDB une méthode pour répercuter le changement en DB
         raise NotImplementedError
     def delete(self) :
         raise NotImplementedError
@@ -41,13 +93,14 @@ class Controller(abc.ABC):
         raise NotImplementedError
     def save(self):
         raise NotImplementedError
-    def draw(self): # affiche
+    def show(self): # affiche
         raise NotImplementedError
     def execute_action(self):
         raise NotImplementedError
 
 
 class PrintController(Controller):
+    
     def __init__(self, to_print):
         self.to_print = to_print
 
@@ -55,35 +108,36 @@ class PrintController(Controller):
         print(self.to_print)
 
 
-class MenuManager(Controller) :
-    """
-    Avec cette classe nous voulons créer et gérer les objets suivants :
-    main_menu, player_menu, tournament_menu, launch_newtournament, report_menu1, report_menu2
 
-    NB : objet_menu = MenuManager(titre, [liste de(couples choix du menu et action associée)])
+class MenuManager(Controller):
 
-    rapports1 fait choisir entre les listes de tous les joueurs (hors tournoi particulier),
-    rapports2 fait choisir les infos qu'on veut sur un tournoi à partir de la liste des tournois.
-    """
-
-    def __init__(self, name, choices, menu_view=MenuView(1), start=1):
-        self.name = name
-        self.choices = choices or []
-        self.menu_view = menu_view
-        self.menu_view.bind(self)
-        self.start = start
-
+    def read_menu(self):
+        """ construit un menu en fonction de la demande de l'utilisateur"""
+        while True :
+            selection = input("Votre choix:")
+            if selection == "q": # une solution pour retourner en arrière
+                break
+            if selection in MENU_FACTORIES:
+                return MENU_FACTORIES(selection) # ajouter enumerate pour numéro au lieu de nom
+    
+"""   
     def execute_action(self):
         while True:
-            choice = self.menu_view.draw()
+            choice = self.menu_view.show(self.choices)
             if choice == "q": # une solution pour retourner en arrière
                 break
             try:
-                choice = self.choices[int(choice) - self.start]
+                choice = self.choices[int(choice) - self.start][1]
             except (TypeError, ValueError, IndexError):
                 continue # retour au début de la boucle, q. pr break
-            choice.execute_action()
-
+            else:
+                if callable(choice):
+                    choice()
+                # TournamentManager.add_new
+                else:
+                    choice.execute_action()
+                # TournamentManager.add_new.execute_action()
+"""
 
 class FormManager(Controller) :
     """
@@ -123,6 +177,7 @@ class TournamentManager(Controller) :
         vérifier que toutes les infos sont là (u.a afficher la fiche du tournoi selectionné) et que self.player est viable;
         lancer le tournoi -> lancer round 1
         """
+        return "Entrée dans le start_tournament"
         pass
     
     def next_round (self):
@@ -180,61 +235,41 @@ class ReportManager(Controller) :
 
 if __name__ == "__main__":
 
-    vue_menu = MenuView()
+    print("\n\n----------Essais sur les Controleurs de Training ----------")
+    print("\n----------Essais sur MenuFactory :----------\n")
+
+    main_menu = MenuFactory("menu principal")
+    print(main_menu)
+
     
-    print("\n\n----------Essais sur les modèles de training ----------\n")
-    print("\n----------Essais sur Player :----------\n")
 
-    print(Player)
+    """
+    print("TournamentManager.start_tournament(TournamentManager())", TournamentManager.start_tournament(TournamentManager()))
 
-    player0 = Player()
-    print(player0)
-
-    player1 = Player("ATOME", "Adam", datetime.datetime.strptime("01/02/1972", "%d/%m/%Y"), "homme", 2001 )
-    print(player1)
-
-    print(player1.__repr__)
-
-    typeof = type(player1.birthdate)
-    print(typeof)
-
-    print("\n\n----------Test de la fonction dataclasses.asdict :----------\n") 
-
-    print(asdict(player1))
-
-    print("\n\n----------Essais sur Tournament :----------\n")
-
-    print(Tournament)
-
-    tournament0 = Tournament()
-    print("\n----------Voici la représentation du tournoi test, listes à compléter:----------\n")
-    print(tournament0.__repr__)
-    print("\n----------Et voici son str :----------\n")
-    print(tournament0)
-
-
-    main_menu = MenuManager(
+    main_menu = Menu(
     "Menu Principal",
-    [("Menu Tournois", MenuView.draw(tournamentmenu_choices)),
+    [("Menu Tournois", MenuView.draw(tournamentmenu_choices)),# vue pas = controleur
     ("Menu Joueurs", MenuView.draw(playermenu_choices)),
     ("Menu Rapports", MenuView.draw(reportmenu1_choices))])
 
+    # main_menu.execute_action()
+
     tournament_menu = MenuManager(
     "Menu Tournoi",
-    [("Entrer un nouveau tournoi", TournamentManager.add_new()),
-    ("Modifier un tournoi", TournamentManager.change()),
-    ("Lancer le tournoi", TournamentManager.start_tournament()),
+    [("Entrer un nouveau tournoi", TournamentManager().add_new),
+    ("Modifier un tournoi", TournamentManager().change),
+    ("Lancer le tournoi", TournamentManager().start_tournament),
     ("Retourner au menu principal", MenuView.draw(mainmenu_choices))])
 
     launch_newtournament = MenuManager(
     "lancer nouveau tournoi",
-    [("Lancer le tournoi", TournamentManager.start_tournament()),
+    [("Lancer le tournoi", TournamentManager.start_tournament),
     ("Retourner au menu principal", MenuView.draw(mainmenu_choices))])
 
     player_menu = MenuManager(
     "Menu Joueurs",
-    [("Entrer un nouveau joueur", PlayerManager.add_new()),
-    ("Modifier un joueur", PlayerManager.change()),
+    [("Entrer un nouveau joueur", PlayerManager.add_new),
+    ("Modifier un joueur", PlayerManager.change),
     ("Menu rapports", MenuView.draw(reportmenu1_choices))
     ("Retourner au menu principal", MenuView.draw(mainmenu_choices))])
 
@@ -244,3 +279,4 @@ if __name__ == "__main__":
     ("Joueurs par classement", ReportView.draw(players, ranking)),
     ("Liste des tournois", MenuView.draw(reportmenu2_choices)),
     ("Retourner au menu principal", MenuView.draw(mainmenu_choices))])
+    """
