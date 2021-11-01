@@ -4,16 +4,13 @@ import P4Vues
 
 
 
-def main(fac: P4Controleur.MenuFactory)-> None:
+def main():
     """ Main function"""
    
     P4Vues.Welcome.show_title()
-    P4Vues.Welcome.greetings()
-    P4Vues.MenuView.show() # trouver comment afficher un main menu
-    P4Controleur.MenuManager.read_menu() # et déclencher les choix du main menu
 
  # retrieve the menus
-    menu1 = fac.get_main_menu()
+    #menu1 = fac.get_main_menu()
 
 
     # retrieve the forms

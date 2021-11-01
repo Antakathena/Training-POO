@@ -1,17 +1,13 @@
 import abc
-import P4Controleur
-from Menus import Menu
+import Menus
 
 
-# Pour le test, j'importe les vues avant de résoudre les problèmes d'imports croisés
-    
  
 class View(abc.ABC):
     """ méthode appelée par un contrôleur, affiche des choses à l'écran, les renvoie au contrôleur"""
     def __init__(self, name):
         self.name = name
 
-# en fait c'est plutôt un décorateur ça : faire décorateur vue qui montre titre, explique "q" et montre la transition?
     def show_title(self):
         title = self.name.upper()
         print(f"-----------{title}-----------")
@@ -28,11 +24,12 @@ class Welcome(View):
         self.show_title()    
         print ("Bienvenue")
 
+
 class MenuView(View):
-    """Determine l'affichage des menus tournoi, lancer nouveau tournoi, joueur,..."""
-    def __init__(self, menu: Menu):
+    """Determine l'affichage des menus"""
+    def __init__(self, menu: Menus.Menu):
         super().__init__(menu.menu_name)
-        self.menu: Menu = menu
+        self.menu: Menus.Menu = menu
 
     def show(self):
         super().show()
@@ -43,15 +40,20 @@ class MenuView(View):
         return input("Votre choix : ")
 
 class FormView(View):
-    """with items (inputs) : nous avons les formulaires à remplir pour nouveau joueur, nouveau tournoi, demande de rapport
-    Il faut auss pouvoir modifier les existants"""
-    def __init__(self, start=1):
-        self.start = start
-        super().__init__("FormView")
+    """Determine l'affichage des form"""
+    def __init__(self, form: Menus.Form):
+        super().__init__(form.form_name)
+        self.form: Menus.Form = form
 
     def show(self):
-        print("def show pour afficher les formulaires à implémenter")
-
+        super().show()
+        for i, question in enumerate(self.form.form_questions, start=self.form.start):
+            print(f"{i}) {question}")
+            input()
+            # choice.itemview.show(position=i)
+        print("q) Quitter")
+       
+    
 class ReportView(View):
     """ Défini comment les infos des rapports apparaissent à l'utilisateur"""
     pass
@@ -70,5 +72,9 @@ if __name__ == "__main__":
     print("\n\n----------Essais sur les vues de training ----------")
     print("\n----------Essais sur Menus :----------\n")
 
-    welcome = Welcome
-    print(welcome)
+    welcome = Welcome()
+    welcome.show()
+
+    menu_principal = Menus.MenuFactory("menu principal").make()
+    vue_menu_principal = MenuView(menu_principal)
+    vue_menu_principal.show()

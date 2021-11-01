@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python : Fichier actuel",
+            "type": "python",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "Python : Entree.py",
+            "type": "python",
+            "request": "launch",
+            "program": "Entree.py",
+            "console": "integratedTerminal"
+        }
+    ]
+}
