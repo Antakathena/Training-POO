@@ -73,27 +73,42 @@ class PrintController(Controller):
 """
 
 class MenuManager(Controller):
-    def __init__(self, menu, menu_view, contexte):
-        self.menu = menu(Menus.Menu())
-        self.menu_view = menu_view(P4Vues.MenuView())
-        self.contexte = contexte(self.menu.contexte.copy()) # ou contexte: dict = field(default_factory=dict) et retirer de menu
+    def __init__(self, menu, menu_view):
+        self.menu : Menus.Menu = menu 
+        self.menu_view : P4Vues.MenuView =  menu_view 
+        self.start = self.menu.start
+        self.contexte = self.menu.contexte.copy() # pb : not callable 
+        self.name = self.menu.menu_name
+        self.menu_choice = self.menu.menu_choice
     
     def show(self): # attention : ne pas re-donner les arguments du init)
         return self.menu_view.show() # ici ils sont appelés par self.mot si besoin)
 
+    def prompt_for_selection(self):
+        return self.menu_view.prompt_for_selection()
+
     def read(self):
         """ construit un menu en fonction de la demande de l'utilisateur"""
         while True:
-            selection = self.show()
+            self.show()
+            selection = self.prompt_for_selection()
+            selection = selection.strip()
             if selection == "q": # une solution pour retourner en arrière
                 break
-            selection = int(selection) - self.start # susceptible de lancer une erreur : int("toto") => ???
-            controleur = self.menu_choice[selection][1].make(contexte=self.contexte)
-            controleur.execute()
+            elif selection.isdigit():
+                selection = int(selection) - self.start # susceptible de lancer une erreur : int("toto") => ??
+                menu = self.menu_choice[selection][1].make(contexte=self.contexte) # en fait menu ici peut être form ou menu, ou (?) rapport
+                assert isinstance(menu, Menus.Menu) or isinstance(menu, Menus.Form)
+                vue = P4Vues.MenuView(menu)
+                controleur = MenuManager(menu, vue)
+                controleur.execute()
+                assert isinstance (controleur, Controller)#MenuManager
+            else :
+                print("Choix non valide")
+                #self.read()
 
     def execute(self):
         self.read()
-
 
 
 class FormManager(Controller) :
@@ -123,7 +138,8 @@ class FormManager(Controller) :
 
 
 class PlayerManager(Controller) :
-    pass
+    def add_new():
+        P4Modeles.Player(answers)
 
 
 class TournamentManager(Controller) :
@@ -214,6 +230,12 @@ if __name__ == "__main__":
     welcome.show()
 
     menu_principal = Menus.MenuFactory("menu principal").make()
-    #vue_menu_principal = P4Vues.MenuView(menu_principal)
-    menu_principal.MenuManager.execute()
+    #typeof = type(menu_principal)
+    #print(typeof)
+    vue_menu_principal = P4Vues.MenuView(menu_principal)
+    #vue_menu_principal.show()
+    menu_principal = MenuManager(menu_principal, vue_menu_principal)
+    menu_principal.execute()
+
+    menu_joueur= Menus.MenuFactory("menu joueurs").make()
 

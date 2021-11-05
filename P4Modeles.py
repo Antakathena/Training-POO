@@ -7,7 +7,10 @@ from tinydb import TinyDB, Query
 
 db = TinyDB('db.json')
 
-
+CHAMPS_DE_PLAYER = ("Nom :", "Prénom :", "Date de naissance (**/**/****) :", "Genre (h/f):", ("Classement :"))
+# equivalent de fields si on rajoute le convertisseur en face
+# exemple : ("classement :", int)
+# Dans le else: gestion si formulaire dans Ifactory :
 
 
 @dataclass
@@ -37,7 +40,7 @@ class Player(Model):
             ranking_indication = "classée"
         return f"{titre} {self.firstname} {self.name}, {birthdate_indication} {self.birthdate.strftime('%d/%m/%Y')},{ranking_indication} {self.rating}"
   
-    def player_serialization(self) -> dict : # en fait méthode save (?)
+    def serialization(self) -> dict : # en fait méthode save (?)
         # dataclasses.asdict(instance_de_player) devrait pour passer le joueur à la db sous forme de dict
         pass
 
@@ -156,4 +159,5 @@ if __name__ == "__main__":
     print(f"\n__repr__ de tournament0 : {repr(tournament0)}\n")
     print("\n----------Et voici son str :----------\n")
     print(tournament0)
+    print(asdict(tournament0))
 

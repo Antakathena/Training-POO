@@ -21,7 +21,7 @@ class Welcome(View):
         super().__init__(name)
 
     def show(self):
-        self.show_title()    
+        super().show()    
         print ("Bienvenue")
 
 
@@ -36,22 +36,39 @@ class MenuView(View):
         for i, choice in enumerate(self.menu.menu_choice, start=self.menu.start):
             print(f"{i}) {choice[0]}")
             # choice.itemview.show(position=i)
-        print("q) Quitter")
-        return input("Votre choix : ")
+        #print("q) Quitter")
+        #return input("Votre choix : ")
+
+    def prompt_for_selection(self):
+        selection = input("Votre choix:")
+        return selection
+        
 
 class FormView(View):
     """Determine l'affichage des form"""
     def __init__(self, form: Menus.Form):
         super().__init__(form.form_name)
         self.form: Menus.Form = form
-
+        
+    
     def show(self):
         super().show()
-        for i, question in enumerate(self.form.form_questions, start=self.form.start):
-            print(f"{i}) {question}")
-            input()
-            # choice.itemview.show(position=i)
+        answers = list()
+        for question in self.form.form_questions :
+            print(question)
+            current = input()
+            if current == "q":
+                break
+            else :
+                answers.append(current)
+        print(answers)
+        return answers
         print("q) Quitter")
+
+    
+    def get_the_answers(self):
+        pass
+       
        
     
 class ReportView(View):
@@ -70,11 +87,22 @@ class TournamentView :
 
 if __name__ == "__main__":
     print("\n\n----------Essais sur les vues de training ----------")
-    print("\n----------Essais sur Menus :----------\n")
+    
+    #welcome = Welcome()
+    #welcome.show()
 
-    welcome = Welcome()
-    welcome.show()
+    #menu_principal = Menus.MenuFactory("menu principal").make()
+    #vue_menu_principal = MenuView(menu_principal)
+    #vue_menu_principal.show()
+    #vue_menu_principal.prompt_for_selection()
 
-    menu_principal = Menus.MenuFactory("menu principal").make()
-    vue_menu_principal = MenuView(menu_principal)
-    vue_menu_principal.show()
+    new_player = Menus.FormFactory("Entrer un nouveau joueur").make()
+    print(f"Voici la liste des questions pour le formulaire Entrer un nouveau joueur :\n{new_player}")
+    typeof = type(new_player)
+    print(typeof)
+    
+
+    vue_new_player = FormView(new_player)
+    vue_new_player.show()
+
+

@@ -6,16 +6,10 @@ from dataclasses import dataclass, field
 
 
 FORM_QUESTIONS = {
-    "Entrer un nouveau joueur": ("Nom", "Prénom", "Date de naissance", "Genre", "Classement"),
-    "Entrer un nouveau tournoi" : ("Nom", "Lieu", "Dates", "Nombre de tours", "Contrôle du temps", "Description"),
+    "Entrer un nouveau joueur": ("Nom :", "Prénom :", "Date de naissance (**/**/****) :", "Genre (h/f):", "Classement :"),
+    "Entrer un nouveau tournoi" : ("Nom :", "Lieu :", "Dates (**/**/****):", "Nombre de tours :", "Contrôle du temps :", "Description :"),
 }
 
-
-"""
-class Controleur:
-    def execute(self):
-        raise NotImplementedError
-"""
 
 class ControllerFactory(abc.ABC):
     def make(self, contexte={}):
@@ -58,11 +52,12 @@ class Form:
     start : int = 1
     contexte: dict = field(default_factory=dict) # sert par exemple à savoir dans quel tournoi on est
 
+
 MENU_CHOICES = {
     "menu principal" : (
         ("Menu Tournois", MenuFactory("menu tournois")),
         ("Menu Joueurs", MenuFactory("menu joueurs")),
-        ("Menu Rapports", MenuFactory("menu tournois"))),
+        ("Menu Rapports", MenuFactory("menu rapports"))),
     "menu joueurs":(
         ("Entrer un nouveau joueur", FormFactory("Entrer un nouveau joueur")),
         #("Modifier un joueur", Formulaires.FormFactory("Modifier un joueur")), 
@@ -93,5 +88,8 @@ if __name__ == "__main__":
 
     main_menu = MenuFactory("menu principal").make()
     print(main_menu)
+
+    new_player = FormFactory("Entrer un nouveau joueur").make()
+    print(f"\n{new_player}")
 
     

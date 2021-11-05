@@ -1,35 +1,24 @@
 import P4Controleur
 import P4Vues
+import Menus
 
 
 
 
 def main():
     """ Main function"""
-   
-    P4Vues.Welcome.show_title()
+    #1 : afficher l'accueil
+    welcome = P4Vues.Welcome()
+    welcome.show()
+    #2 afficher le menu principal
+    menu_principal = Menus.MenuFactory("menu principal").make()
+    vue_menu_principal = P4Vues.MenuView(menu_principal)
+    menu_principal = P4Controleur.MenuManager(menu_principal, vue_menu_principal)
+    menu_principal.execute()
 
- # retrieve the menus
-    #menu1 = fac.get_main_menu()
-
-
-    # retrieve the forms
-
-
-    # retrieve the reports
-
-#main_menu = fac.get-mainmenu_choice() # ? l'idée est de faire créer un objet main menu à la factory
 
 if __name__ == "__main__":
-    #1 : afficher l'accueil
+    
     main()
-
-    #2 afficher le menu principal
-
-
-    #fac = read_menu()
-    #main(fac)
-
-#P4Controleur.MenuManager.execute_action()
 
 
