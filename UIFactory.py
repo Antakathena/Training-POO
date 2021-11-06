@@ -4,14 +4,14 @@ from dataclasses import dataclass, field
 from P4Controleur import PlayerManager, TournamentManager
 import P4Modeles
 
-
+@dataclass
 class ControllerFactory(abc.ABC):
-    def make(self, contexte={}):
+    def make(self):
         raise NotImplementedError
 
 
 @dataclass
-class IFactory(ControllerFactory):
+class UIFactory(ControllerFactory):
     """
     Récupère les informations dans le dictionnaire ITEMS:
     "titre" =  infos à afficher pour demander un input ,Controller
@@ -19,49 +19,48 @@ class IFactory(ControllerFactory):
     objet_form = IFactory(nom du form, (liste de questions", Controleur/action - ex : créer nouveau joueur)])
 
     """
-    Iname : str
+    name : str
     start : int = 1
         
-    def make(self, contexte={}):
-        return I(self.Iname, choice = ITEMS.get(self.Iname), start = self.start, contexte=contexte)
-
+    def make(self):
+        return UI(self.name, items = ITEMS.get(self.name), start = self.start)
 
 
 @dataclass
-class I:
+class UI:
     name : str
-    choice : tuple
+    items : tuple
     start : int = 1
-    contexte: dict = field(default_factory=dict) # sert par exemple à savoir dans quel tournoi on est
+
 
 ITEMS = {
     "menu principal" : (
-        ("Menu Tournois", IFactory("menu tournois")), 
-        ("Menu Joueurs", IFactory("menu joueurs")), 
-        ("Menu Rapports", IFactory("menu rapports"))),
+        ("Menu Tournois", UIFactory("menu tournois")), 
+        ("Menu Joueurs", UIFactory("menu joueurs")), 
+        ("Menu Rapports", UIFactory("menu rapports"))),
     "menu joueurs":(
-        ("Entrer un nouveau joueur", IFactory("Entrer un nouveau joueur")),
+        ("Entrer un nouveau joueur", UIFactory("Entrer un nouveau joueur")),
         #("Modifier un joueur", IFactory("Modifier un joueur")), 
-        ("Menu rapports", IFactory("menu des rapports (joueurs)")),
-        ("Retourner au menu principal", IFactory("menu principal"))),
+        ("Menu rapports", UIFactory("menu des rapports (joueurs)")),
+        ("Retourner au menu principal", UIFactory("menu principal"))),
     "menu tournois":(
-       ("Entrer un nouveau tournoi", IFactory("Entrer un nouveau joueur")),
+       ("Entrer un nouveau tournoi", UIFactory("Entrer un nouveau joueur")),
         #("Modifier un tournoi", IFactory("Modifier un joueur")), 
-        ("Lancer le tournoi", IFactory("Lancer le tournoi")),
-        ("Retourner au menu principal", IFactory("menu principal"))),
+        ("Lancer le tournoi", UIFactory("Lancer le tournoi")),
+        ("Retourner au menu principal", UIFactory("menu principal"))),
     "menu lancer le tournoi":(
-        ("Lancer le tournoi", IFactory("Lancer le tournoi")),
-        ("Retourner au menu principal", IFactory("menu principal"))),
+        ("Lancer le tournoi", UIFactory("Lancer le tournoi")),
+        ("Retourner au menu principal", UIFactory("menu principal"))),
     "menu lancer le round": (
-        ("Lancer le round", IFactory("Lancer le round")),
-        ("Retourner au menu principal", IFactory("menu principal"))),
+        ("Lancer le round", UIFactory("Lancer le round")),
+        ("Retourner au menu principal", UIFactory("menu principal"))),
     "menu des rapports (joueurs)":(
         #("Joueurs par ordre alphabétique", ReportFactory("Joueurs par ordre alphabétique")),
         #("Joueurs par classement", ReportFactory("Joueurs par classement")),
         #("Liste des tournois", ReportFactory("Liste des tournois")),
-        ("Retourner au menu principal", IFactory("menu principal"))),
+        ("Retourner au menu principal", UIFactory("menu principal"))),
     "Entrer un nouveau joueur": (
-        (P4Modeles.CHAMPS_DE_PLAYER, PlayerManager.add_new)), # FormFactory
+        (P4Modeles.PLAYER_FIELDS, PlayerManager)), # FormFactory
     "Entrer un nouveau tournoi" : (
         ("Nom :", "Lieu :", "Dates (**/**/****):", "Nombre de tours :", "Contrôle du temps :", "Description :", TournamentManager.add_new)),   
 }
@@ -80,23 +79,24 @@ class View(abc.ABC):
     def show(self):
         self.show_title()
 
-class IView(View):
+
+class UIView(View):
     """Determine l'affichage des menus et forms"""
-    def __init__(self, i: I):
-        super().__init__(i.name)
-        self.i: I = i
+    def __init__(self, ui: UI):
+        super().__init__(ui.name)
+        self.ui: UI = ui
 
     def show(self):
         super().show()
         if self.name.startswith("menu"):
-            for num, choice in enumerate(self.i.choice, start=self.i.start):
+            for num, choice in enumerate(self.ui.items, start=self.ui.start):
                 print(f"{num}) {choice[0]}")
             selection = input("Votre choix:")
             return selection
         # le else est la vue questionnaire :    
         else : 
             answers = list()
-            for question in self.i.choice[0] :
+            for question in self.ui.items[0] :
                 print(question)
                 current = input()
                 if current == "q":
@@ -116,7 +116,7 @@ class Controller(abc.ABC):
         self.player = P4Modeles.Player()
         self.tournament = P4Modeles.Tournament()
         # vues
-        self.menuview = IView()
+        self.menuview = UIView()
         ##self.formview = FormView()
         ##self.reportview = ReportView()
     def add_new(self) :
@@ -143,14 +143,13 @@ class Controller(abc.ABC):
         raise NotImplementedError
 
 
-class IManager(Controller):
-    def __init__(self, i, view):
-        self.i : I = i 
-        self.view : IView =  view 
-        self.start = self.i.start
-        self.contexte = self.i.contexte.copy()
-        self.name = self.i.name
-        self.choice = self.i.choice
+class UIManager(Controller):
+    def __init__(self, ui, view):
+        self.ui : UI = ui 
+        self.view : UIView =  view 
+        self.start = self.ui.start
+        self.name = self.ui.name
+        self.items = self.ui.items
     
     def show(self): # attention : ne pas re-donner les arguments du init)
         return self.view.show() # ici ils sont appelés par self.mot si besoin)
@@ -165,10 +164,10 @@ class IManager(Controller):
                 selection = selection.strip()
                 if selection.isdigit():
                     selection = int(selection) - self.start # susceptible de lancer une erreur : int("toto") => ??
-                    i = self.choice[selection][1].make(contexte=self.contexte) # en fait menu ici peut être form ou menu, ou (?) rapport
-                    assert isinstance(i, I)
-                    vue = IView(i)
-                    controleur = IManager(i, vue)
+                    i = self.items[selection][1].make() # en fait menu ici peut être form ou menu, ou (?) rapport
+                    assert isinstance(i, UI)
+                    vue = UIView(i)
+                    controleur = UIManager(i, vue)
                     controleur.execute()
                     assert isinstance (controleur, Controller) # MenuManager
                 else :
@@ -178,26 +177,36 @@ class IManager(Controller):
                 answers = self.show()
                 if answers == "q": 
                     break
+                else :
+                    controleur = self.items[1](answers)
+                    controleur.add_new(answers)
                 # convertissement des answers en objets python
                 # ex: date de naissance => objet Date()
-                for i, answer in enumerate(answers):
-                    answers[i] = self.choice[0][i][1](answer) # attention : peut raise une exception
-                self.choice[1](*answers) # Controleur.methode(answers[0], answers[1], answers[2], ...)
+                #for i, answer in enumerate(answers):
+                # try:
+                #   answers[i] = self.items[0][i][1](answer) # attention : peut raise une exception                         
+                # except :
+                #self.items[1](*answers) # Controleur.methode(answers[0], answers[1], answers[2], ...)
                 # récupérer answers et avec add_new en faire un dictionnaire et db.insert
 
     def execute(self):
         self.read()
 
+"""
 class PlayerManager(Controller) :
-    def add_new(self, *args):
-        P4Modeles.Player(*args)
-        # insert dans tinydb
+    def add_new(self, answers): # rempl answers par *args si ça ne marche pas et qu'on doit iterer dans answers
+        player = P4Modeles.Player(answers) # pareil
+        print(player)
+        return player
+    def execute(self, player : P4Modeles.Player) :
+        P4Modeles.Player.insert(player)# def execute? insert dans tinydb
+"""
 
 if __name__ == "__main__":
 
     print("\n----------Essais sur IFactory :----------\n")
 
-    menu_principal = IFactory("menu principal").make()
-    vue_menu_principal = IView(menu_principal)
-    menu_principal = IManager(menu_principal, vue_menu_principal)
+    menu_principal = UIFactory("menu principal").make()
+    vue_menu_principal = UIView(menu_principal)
+    menu_principal = UIManager(menu_principal, vue_menu_principal)
     menu_principal.execute()

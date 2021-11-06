@@ -138,8 +138,22 @@ class FormManager(Controller) :
 
 
 class PlayerManager(Controller) :
-    def add_new():
-        P4Modeles.Player(answers)
+    def __init__ (self, answers):
+        self.answers = answers
+
+    def adapt_answers(self, answers):
+        answers[2] = datetime.datetime.strptime(answers[2], "%d/%m/%Y") # birthdate
+        answers[4] = int(answers[4])
+        print(*answers)
+
+    def add_new(self, answers): # rempl answers par *args si ça ne marche pas et qu'on doit iterer dans answers
+        self.adapt_answers(answers)
+        player = P4Modeles.Player(*answers) # pareil
+        print(player)
+        return player
+
+    def execute(self, player : P4Modeles.Player) : # changer pour "save?"
+        P4Modeles.Player.insert(player)# def execute? insert dans tinydb
 
 
 class TournamentManager(Controller) :

@@ -12,7 +12,7 @@ FORM_QUESTIONS = {
 
 
 class ControllerFactory(abc.ABC):
-    def make(self, contexte={}):
+    def make(self):
         raise NotImplementedError
 
 
@@ -25,8 +25,8 @@ class MenuFactory(ControllerFactory):
     menu_name : str
     start : int = 1
         
-    def make(self, contexte={}):
-        return Menu(self.menu_name, menu_choice = MENU_CHOICES.get(self.menu_name), start = self.start, contexte=contexte)
+    def make(self):
+        return Menu(self.menu_name, menu_choice = MENU_CHOICES.get(self.menu_name), start = self.start)
 
 
 @dataclass
@@ -42,8 +42,8 @@ class FormFactory(ControllerFactory):
     form_name : str
     start : int = 1
 
-    def make(self, contexte={}):
-        return Form(self.form_name, form_questions = FORM_QUESTIONS.get(self.form_name), start = self.start, contexte=contexte)
+    def make(self):
+        return Form(self.form_name, form_questions = FORM_QUESTIONS.get(self.form_name), start = self.start)
 
 @dataclass
 class Form:
