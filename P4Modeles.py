@@ -7,10 +7,6 @@ from tinydb import TinyDB, Query
 
 db = TinyDB('db.json')
 
-PLAYER_FIELDS = ("Nom :", "Prénom :", "Date de naissance (**/**/****) :", "Genre (h/f):", ("Classement :"))
-# equivalent de fields si on rajoute le convertisseur en face
-# exemple : ("classement :", int)
-# Dans le else: gestion si formulaire dans Ifactory :
 
 
 @dataclass
