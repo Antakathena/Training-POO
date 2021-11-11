@@ -7,7 +7,12 @@ from tinydb import TinyDB, Query
 
 db = TinyDB('db.json')
 
-
+class DateTimeSerializer():
+        #DATE_OBJECT_CLASS = datetime  # The class this serializer handles
+        def encode(self, date_object):
+            return date_object.strftime("%d/%m/%Y")
+        def decode(self, s):
+            return datetime.strptime(s, "%d/%m/%Y")
 
 @dataclass
 class Model(abc.ABC):
@@ -38,28 +43,32 @@ class Player(Model):
   
     def serialization(self) -> dict : # en fait méthode save (?)
         # dataclasses.asdict(instance_de_player) devrait pour passer le joueur à la db sous forme de dict
-        pass
-
-    def insert(self, player):
-        db.insert(asdict(player))
+                pass
+    
+    def insert(self):
+        player = asdict(self)
+        print(player["birthdate"])
+        player["birthdate"] = DateTimeSerializer.encode(player["birthdate"])
+        db.insert(player)
 
 
 @dataclass
 class Tournament(Model):
     name : str = "Tournoi Test"
     location : str = "Quelque part"
-    dates : datetime = datetime.datetime.strptime("05/06/2025", "%d/%m/%Y")
-    # dates : à changer en date de début à date de fin donc tuple de dates?
+    start_date : datetime = datetime.datetime.strptime("05/06/2025", "%d/%m/%Y")
+    end_date : datetime = datetime.datetime.strptime("06/06/2025", "%d/%m/%Y")
     players : list = field(default_factory=list)
     number_of_rounds : int= field(default=4)
     rounds : list = field(default_factory=list)
     # rounds = dict ou liste d'une liste de tuples des matchs du round ex : round1 [(joueur1, joueur5), (joueur2, joueur6), etc] 
-    timecontrol : str = "bullet/blitz/coup rapide"
+    timecontrol : str = "bullet/blitz/coup rapide" # créer classe enum : time-control -> timecontrol : timecontrol
     description : str = field(default= " ")
 
     def __str__(self):
-        return f"{self.name},{self.location},{self.dates.strftime('%d/%m/%Y')},\
-{self.players},{self.number_of_rounds},{self.rounds},{self.timecontrol},{self.description}"
+        return f"{self.name},{self.location},{self.start_date.strftime('%d/%m/%Y')},\
+{self.end_date.strftime('%d/%m/%Y')},{self.players},{self.number_of_rounds},{self.rounds},\
+{self.timecontrol},{self.description}"
 
         # Pour amélioration, utiliser propriété de dataclasses :
         # essayer : for info in dataclasses.fields(Tournament): return str(info)
