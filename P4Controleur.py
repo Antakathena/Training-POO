@@ -59,23 +59,43 @@ class MenuManager(Controller):
     choices : tuple
     view : P4Vues.View
     start : int = 1
-        
-    def react_to_answer(self):
-        """Récupère la réponse de l'utilisateur depuis la vue du menu.
-        Créé un controleur en fonction de la demande de l'utilisateur."""
+
+    def initial_manager(self):
+        """On commence forcément par un menu."""
         answer = self.view.show()
         name = self.choices[answer]
-        
-        if name.startswith("Menu"):
-            action = ManagerFactory(name).make_menu()
-            print(action)
-        else :
-            action = ManagerFactory(name).make_form()
-            print(action)
-        return action
 
-    def show(self, action : Controller):
-        action.view.show()
+        requested_manager = ManagerFactory(name).make_menu()
+        return requested_manager 
+            
+    def react_to_answer(self, requested_manager : Controller):
+        """Récupère la réponse de l'utilisateur depuis la vue du menu.
+        Créé un controleur en fonction de la demande de l'utilisateur."""
+        
+        name = requested_manager.name
+
+        while True:
+            print("\ninfo dev : Nouvelle boucle dans MenuManager\n")
+            answer = requested_manager.view.show() # ou self.show(requested_manager) plutôt?
+            name = requested_manager.choices[answer]
+
+            if name.startswith("Menu"):
+                requested_manager = ManagerFactory(name).make_menu()
+            elif name.startswith("Rapport:"):
+                requested_manager = ManagerFactory(name).make_report()
+            else :
+                requested_manager = ManagerFactory(name).make_form()
+                answers = requested_manager.view.show()
+                if "joueur" in name:
+                    PlayerManager(answers).execute()
+                    requested_manager = ManagerFactory("Menu joueurs").make_menu()
+                if "tournoi" in name:
+                    TournamentManager(answers).execute()
+                    requested_manager = ManagerFactory("Menu tournois").make_menu()
+
+            
+    def show(self, requested_manager : Controller):
+        requested_manager.view.show()
 
    
         # form ou menu, ou (?) rapport controleur = ManagerFactory.make(le nom de l'IU à générer)
@@ -86,7 +106,7 @@ class FormManager(Controller):
     questions : tuple
     view : P4Vues.View
     start : int = 1
-
+    
     def react_to_answer(self):
         """lance un formulaire en fonction de la demande de l'utilisateur"""
         answers = self.view.show()
@@ -113,10 +133,8 @@ class FormManager(Controller):
 @dataclass
 class ManagerFactory:
     """
-    Récupère les informations dans le dictionnaire ITEMS:
-    "titre" =  infos à afficher pour demander un input ,Controller
-    objet_menu = IFactory(nom du menu, (liste de couples (("Titre option", Controleur/action)))
-    objet_form = IFactory(nom du form, (liste de questions", Controleur/action - ex : créer nouveau joueur)])
+    Réuni les informations et créé les controleurs pour les UI
+    donc la base des Menus, Questionnaires et Rapports.
 
     """
     name : str
@@ -139,6 +157,10 @@ class ManagerFactory:
             start = self.start
         )
 
+    def make_report(self):
+        #return ReportManager(args, contenu)
+        return NotImplementedError
+        
 class PlayerManager(Controller) :
     def __init__ (self, answers):
         self.answers = answers
@@ -151,8 +173,8 @@ class PlayerManager(Controller) :
     def add_new(self): # rempl answers par *args si ça ne marche pas et qu'on doit iterer dans answers
         self.adapt_answers()
         player = P4Modeles.Player(*self.answers) # pareil
-        print(player)
         P4Modeles.Player.insert(player)
+        print(f"\nAjout d'un joueur à la base de donnée : {player}\n") 
 
     def execute(self) : # changer pour "save?"
         self.adapt_answers()
@@ -161,7 +183,8 @@ class PlayerManager(Controller) :
         # def execute? insert dans tinydb
 
 class TournamentManager(Controller) :
-    pass
+    def execute(self):
+        return super().execute()
 
 if __name__ == "__main__":
 
@@ -173,11 +196,18 @@ if __name__ == "__main__":
     welcome.show()
 
 # 2-afficher le menu principal
-    #menu_principal = ManagerFactory("Menu principal").make_menu()
-    #menu_principal.react_to_answer()
-    #Appli.execute()
-    enregistrer_joueur = ManagerFactory("Entrer un nouveau joueur").make_form()
-    enregistrer_joueur.react_to_answer()
+    menu_principal = ManagerFactory("Menu principal").make_menu()
+    requested_manager = menu_principal.initial_manager()
+    MenuManager.react_to_answer(menu_principal, requested_manager)
 
+# 3-afficher le formulaire pour enregistrer un nouveau joueur (inscrire 8 joueurs au moins ds la db)
 
-# 3-afficher le formulaire pour inscrire un nouveau joueur
+#enregistrer_joueur = ManagerFactory("Entrer un nouveau joueur").make_form()
+#enregistrer_joueur.react_to_answer()
+
+# 4-afficher le formulaire pour enregistrer un nouveau tournoi
+
+# 5-modifier le tournoi (u.a ajouter 8 joueurs)
+
+# 6-Lancer un tournoi (vérifier qu'infos complètes)
+# Tournoi : {{round 1 : [(j1, score, j5, score), (j2, score, j6, score), etc]}

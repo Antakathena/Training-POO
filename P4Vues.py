@@ -5,12 +5,12 @@ from dataclasses import dataclass
 
 MENUS_CHOICES = {
     "Menu principal" : ("Menu tournois","Menu joueurs","Menu rapports"),
-    "Menu joueurs": ("Entrer un nouveau joueur","Menu des rapports (joueurs)","Retourner au menu principal"),
-    "Menu tournois": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu des rapports (tournois)","Retourner au menu principal"),
-    "Menu lancer le tournoi": ("Entrer un nouveau tournoi","Lancer le tournoi","Retourner au menu principal"),
-    "Menu lancer le round": ("Lancer le round","Retourner au menu principal"),
-    "Menu des rapports (joueurs)":("Retourner au menu principal"),
-    "Menu des rapports (tournois)":("Retourner au menu principal"),
+    "Menu joueurs": ("Entrer un nouveau joueur","Menu des rapports (joueurs)","Menu principal"),
+    "Menu tournois": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu des rapports (tournois)","Menu principal"),
+    "Menu lancer le tournoi": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu principal"),
+    "Menu lancer le round": ("Lancer le round","Menu principal"),
+    "Menu des rapports (joueurs)":("Rapports pas encore disponibles","Menu principal"),
+    "Menu des rapports (tournois)":("Rapports pas encore disponibles","Menu principal"),
 }
 
 FORMS_FIELDS = {
@@ -75,7 +75,6 @@ class MenuView(View):
                 len(answer) == 1
                 answer.isdigit()
                 answer = int(answer)
-                print(answer)
             except ValueError :
                 print(f"{answer} n'est pas un choix possible.")
                 continue
@@ -85,6 +84,7 @@ class MenuView(View):
             else:
                 break
         answer = int(answer) - self.start
+        print(f"\ninfo dev : la vue retourne la réponse :{answer}")
         # On obtient un int coorespondant à choix -1:
         return answer
                 
@@ -118,7 +118,7 @@ class FormView(View):
                     break
             else :
                 answer.append(current)
-        self.verify_the_answer(questions,answer)
+        self.verify_the_answer(questions,answer) # peut-être complètement inutile
         return answer
 
     def verify_the_answer(self, questions,answer : list):
@@ -131,7 +131,6 @@ class FormView(View):
         except AssertionError :
             print(f"Vous n'avez pas répondu à toutes les questions.")
         else :
-            print("La liste des réponses est complète.")
             return answer
 
 """
