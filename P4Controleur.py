@@ -43,15 +43,6 @@ class Controller(abc.ABC):
     def execute(self):
         raise NotImplementedError
 
-@dataclass
-class Appli(Controller):
-    controller : Controller
-
-    def execute(self):
-        while True:
-            action = self.controller.MenuManager.react_to_answer()
-            self.MenuManager.show(action)
-
 
 @dataclass
 class MenuManager(Controller):
@@ -75,7 +66,7 @@ class MenuManager(Controller):
         name = requested_manager.name
 
         while True:
-            print("\ninfo dev : Nouvelle boucle dans MenuManager\n")
+            print("info dev : Nouvelle boucle dans MenuManager\n")
             answer = requested_manager.view.show() # ou self.show(requested_manager) plutôt?
             name = requested_manager.choices[answer]
 
@@ -165,14 +156,14 @@ class PlayerManager(Controller) :
     def __init__ (self, answers):
         self.answers = answers
 
-    def adapt_answers(self):
+    def adapt_answers(self): # Nom, Prénom, Date de naissance, genre, classement
         self.answers[0] = self.answers[0].upper()
-        #self.answers[2] = datetime.datetime.strptime(self.answers[2], "%d/%m/%Y") # birthdate
+        self.answers[1] = self.answers[1].capitalize()
         self.answers[4] = int(self.answers[4])
 
-    def add_new(self): # rempl answers par *args si ça ne marche pas et qu'on doit iterer dans answers
+    def add_new(self):
         self.adapt_answers()
-        player = P4Modeles.Player(*self.answers) # pareil
+        player = P4Modeles.Player(*self.answers)
         P4Modeles.Player.insert(player)
         print(f"\nAjout d'un joueur à la base de donnée : {player}\n") 
 
@@ -183,8 +174,22 @@ class PlayerManager(Controller) :
         # def execute? insert dans tinydb
 
 class TournamentManager(Controller) :
+    def __init__ (self, answers):
+        self.answers = answers
+
+    def adapt_answers(self):   # Nom, Lieu, Date de début, Date de fin, Nombre de tours, Contrôle du temps, Description
+        self.answers[0] = self.answers[0].upper()
+        self.answers[1] = self.answers[1].capitalize()
+
+    def add_new(self):
+        self.adapt_answers()
+        tournament = P4Modeles.Tournament(*self.answers) 
+        P4Modeles.Tournament.insert(tournament)
+        print(f"\nAjout d'un tournoi à la base de donnée : {tournament}\n") 
+   
     def execute(self):
-        return super().execute()
+        self.adapt_answers()
+        self.add_new()
 
 if __name__ == "__main__":
 

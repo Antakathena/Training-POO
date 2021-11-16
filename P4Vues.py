@@ -25,9 +25,9 @@ FORMS_FIELDS = {
         "Lieu :", 
         "Date de début (**/**/****):",
         "Date de fin (**/**/****):",
-        "Nombre de tours :",
-        "Contrôle du temps :", 
-        "Description :")
+        "Nombre de tours (facultatif) :",
+        "Contrôle du temps (bullet/blitz/coup rapide):", 
+        "Description (factulatif):")
 }
 
 class View(abc.ABC):
@@ -114,12 +114,32 @@ class FormView(View):
                     print(question)
                     current = input()
                 else : 
-                    answer.append(current)
+                    #answer.append(current)
                     break
-            else :
-                answer.append(current)
+            while "temps" in question:
+                if current in ["bullet","blitz","coup rapide"]:
+                    break
+                else : 
+                    print("Vous devez indiquer bullet, blitz ou coup rapide , veuillez réessayer")
+                    print(question)
+                    current = input()
+            while "nombre" in question:
+                if current.isdigit():
+                    current = int(current)
+                else :
+                    try:
+                        current == ""
+                    except ValueError:
+                        print(f"La réponse doit être laissée vide ou être un chiffre.\
+                            Vous avez saisi {self.answers}. Veuillez répondre à nouveau :")  
+
+            answer.append(current)
         self.verify_the_answer(questions,answer) # peut-être complètement inutile
+        
+        for pair in (zip(questions,answer)):
+            print (pair)
         return answer
+
 
     def verify_the_answer(self, questions,answer : list):
         try :
@@ -127,40 +147,12 @@ class FormView(View):
         except ValueError :
             print(f"{answer} n'est pas une liste !")
         try : 
-            len(answer) == len(questions)# on vérifie que les types sont respectés
+            assert len(answer) == len(questions)# on vérifie que les types sont respectés
         except AssertionError :
             print(f"Vous n'avez pas répondu à toutes les questions.")
         else :
             return answer
 
-"""
-class UIView(View):
-    Determine l'affichage des interfaces utilisateurs : menus et formulaires
-    def __init__(self, ui: UIBase.UI):
-        super().__init__(ui.name)
-        self.ui: UIBase.UI = ui
-
-    def show(self):
-        super().show()
-        if self.name.startswith("menu"):
-            for num, choice in enumerate(self.ui.items, start=self.ui.start):
-                print(f"{num}) {choice[0]}")
-            selection = input("Votre choix:")
-            return selection
-        # le else est la vue questionnaire :    
-        else : 
-            answers = list()
-            for question in self.ui.items[0] :
-                print(question)
-                current = input()
-                if current == "q":
-                    break
-                else :
-                    answers.append(current)
-            print(answers)
-            return answers
-"""     
-    
 class ReportView(View):
     """ Défini comment les infos des rapports apparaissent à l'utilisateur"""
     pass

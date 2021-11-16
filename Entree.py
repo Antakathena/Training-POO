@@ -1,8 +1,5 @@
 import P4Controleur
 import P4Vues
-import UIBase
-
-
 
 
 def main():
@@ -11,10 +8,9 @@ def main():
     welcome = P4Vues.Welcome()
     welcome.show()
     #2 afficher le menu principal
-    menu_principal = UIBase.UIFactory("menu principal").make()
-    vue_menu_principal = P4Vues.UIView(menu_principal)
-    menu_principal = P4Controleur.UIManager(menu_principal, vue_menu_principal)
-    menu_principal.execute()
+    menu_principal = P4Controleur.ManagerFactory("Menu principal").make_menu()
+    requested_manager = menu_principal.initial_manager()
+    P4Controleur.MenuManager.react_to_answer(menu_principal, requested_manager)
 
 
 if __name__ == "__main__":
