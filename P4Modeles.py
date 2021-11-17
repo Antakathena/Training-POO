@@ -5,8 +5,7 @@ import datetime
 import re
 from enum import Enum, auto
 from pprint import pprint
-from tinydb import TinyDB, Query
-
+from tinydb import TinyDB, Query, operations
 
 db = TinyDB('db.json', ensure_ascii=False)
 
@@ -67,9 +66,10 @@ class Serialization:
         print(age)
         return age
 
-#idée ?
 
 class Database:
+    def __init__ ( self = db):
+        pass
     
     def insert(self, dataclass_instance_to_insert):
         Recherche = Query()
@@ -82,27 +82,30 @@ class Database:
         try: db.contains(Recherche[dict_du_modele['name']])
         except RuntimeError:
             db.insert(dict_du_modele)
-            print(f"Enregistrement de {self} dans la base de données...")
+            print(f"Enregistrement de {dict_du_modele['name']} dans la base de données...")
         else:
-            print(f"{self} est déjà enregistré dans la base de données")
+            print(f"{dict_du_modele['name']} est déjà enregistré dans la base de données")
 
         # db.insert({'type': 'apple', 'count': 7})
         # db.insert({'type': 'peach', 'count': 3})
         # pourrait chercher et remplacer systématiquement les datetime ds les dataclasses asdict avt db.insert
 
+    def check_if_in_db(self, a_chercher : str):
+        """Vérifie si un objet est dans la db"""
+        Recherche = Query()
+        db.contains(Recherche[a_chercher])
 
-    def get_in_db(self, objet_a_chercher):
+
+    def get_in_db(self, a_chercher : str):
         """Cherche un objet dans la db à partir de son nom (clé = name). Prévoit les erreurs de casse."""
         Recherche = Query()
-        if db.search (Recherche.name == objet_a_chercher) != []:
-            resultat = db.search(Recherche.name == objet_a_chercher)
-        elif db.search (Recherche.name == objet_a_chercher.upper()) != []:
-            resultat = db.search (Recherche.name == objet_a_chercher.upper())
-        else:
-            resultat = db.search (Recherche.name == objet_a_chercher.capitalize())
-            print(objet_a_chercher.capitalize())
-        Serialization.findall_datestring(resultat)
+        a_chercher = str(a_chercher)
+        resultat = db.search (Recherche.name.matches( a_chercher, flags=re.IGNORECASE))
+        print(type(resultat))
+        #print(resultat)
+        # Bon là il faut déserialiser pour que l'objet redevienne un dico? une instance de dataclasse?, une liste d'infos?
         return resultat
+
         # recherche = Query()
         # db.search (recherche.type == "peach") >>> [{'count': 3, 'type': 'peach'}]
         # db.search (recherche.count > 5 "peach") >>> [{'count': 7, 'type': 'apple'}]
@@ -110,13 +113,25 @@ class Database:
         # attention : search sensible à la casse donc prévoir que l'utilisateur n'utilise pas la bonne ( lettres maj ou minuscules etc)
         # pourrait chercher et remplacer systématiquement les date_string en datetime
 
-    def change(self):
-        # db.update ({"count" : 10}, fruit type == "apple")}) >>> [{'count': 10, 'type': 'apple'}
-        raise NotImplementedError
+    def change(self, k, v, k_to_change, v_to_change):
+        """
+        Modifie un objet dans la db.
 
-    def delete(self):
-        # >>> db.remove(recherche.count < 5) >>> db.all() >>> [{'count': 10, 'type': 'apple'}]
-        raise NotImplementedError
+        k = clé du champs pour trouver l'objet (ex : "firstname")
+        v = valeur connue pour trouver l'objet (ex : "Jasper")        
+        k_to_change = clé du champs à changer
+        v_to_change = nouvelle valeur
+        """
+        Recherche = Query()
+        db.update ({k_to_change: v_to_change}, Recherche[k] == v)
+
+        # db.update ({"count" : 10}, fruit type == "apple")}) >>> [{'count': 10, 'type': 'apple'}
+
+    def delete(self, k, v):
+        """Efface de la db"""
+        Recherche = Query()
+        db.remove (Recherche[k] == v)
+        print(f"Objet dont {k} = {v} Effacé")
 
     def getFieldList(self,fieldName):
         """ Crée une liste de toutes les valeurs correspondant à la clé donnée (fieldname)"""
@@ -144,6 +159,20 @@ class Database:
         # res = getFieldData('name')
         # for name in res:
         # print(name)
+
+    def get_tournaments_list(self = db):
+        """
+        Génère une liste des tournois si leur nom commence pas tournoi.
+        Idéalement il aurait fallu rajouter un champs "nature : tournoi ou joueur
+        dans les dataclass et trouver comment récupérer
+        l'objet entier d'après une clé dans la db (mais comment faire?)"
+        """
+        registered_tournaments = [] 
+        result = [r['name'] for r in db]
+        for r in result:
+            if "TOURNOI" in r:
+                registered_tournaments.append(r)
+        return registered_tournaments
 
 #idée ?
 class TimeControl(Enum):
@@ -219,9 +248,9 @@ class Tournament(Model):
     location : str
     start_date : datetime = datetime.datetime.strptime("06/06/2025", "%d/%m/%Y")
     end_date : datetime = datetime.datetime.strptime("06/06/2025", "%d/%m/%Y")
-    number_of_rounds : int= field(default=4)
+    number_of_rounds : int= 4
     timecontrol : str = "bullet/blitz/coup rapide" # créer classe enum : time-control -> timecontrol : timecontrol
-    description : str = field(default= "")
+    description : str = ""
 
     # Créés au cours du tournoi :
     players : list = field(default_factory=list) # liste d'objets Player
@@ -235,15 +264,23 @@ class Tournament(Model):
         return f"{self.name},{self.location},{self.start_date.strftime('%d/%m/%Y')},\
 {self.end_date.strftime('%d/%m/%Y')},{self.number_of_rounds},{self.timecontrol},{self.description}"
 
+    def select_players(self, nom) :
+        try:
+            player = Database.get_in_db(nom)
+            print(player)
+            answer = input("C'est bien la fiche à ajouter? (O/n")
+            if answer == "O":
+                self.players.append(Player())
+        except NameError:
+            print("Ce joueur n'est pas dans la base de données.")
+
+    def add_to_playerslist(self,joueur):
+        Recherche = Query()
+        db.update(operations.add("players",joueur), Recherche.name == self.name)
+
+
     def insert(self):
         Database.insert(db,self)
-        """
-        tournament = asdict(self)
-        tournament["start_date"] = Serialization.date_serialization(tournament["start_date"])
-        tournament["end_date"] = Serialization.date_serialization(tournament["end_date"])
-        db.insert(tournament)
-        print(f"{self} est enregistré dans la db.")
-        """
 
     def get_in_db(self):
         # recherche = Query()
@@ -351,29 +388,8 @@ if __name__ == "__main__":
     print("\n----------Et voici son str :----------\n")
     print(tournament0)
     print(asdict(tournament0))
-   
-   date = "01/01/1971"  
 
-    date = datetime.datetime.strptime(date, "%d/%m/%Y") # ça marche : change en datetime
-    print(date)
-    print(type(date))
-
-    date = date.strftime('%d/%m/%Y') # ça marche : change en string
-    print(date)
-    print(type(date))
-
-
-    date = Serialization.date_deserialization(date) 
-    print(date)
-    print(type(date))
-
-    date = Serialization.date_serialization(date)
-    print(date)
-    print(type(date))
-
-   
-
-    #pprint(db.all())
+    print("\n\n----------Essais sur Database :----------\n")
 
     Recherche = Query()
     print(db.search (Recherche.name == "WAYNE"))
@@ -395,10 +411,6 @@ if __name__ == "__main__":
     blop =db.get(Recherche["name"]=='BARDOT') # récupère un seul elt même si plusieurs dans la db
     print(blop)
 
-    #Crée une liste de toutes les valeurs correspondant à la clé donnée (fieldname):
-    result = [r['name'] for r in db]
-    print(result)
-
     print(Database.getFieldList(db,'name')) # liste des noms
 
     print(Database.getFieldData(db,"firstname", "Bruce", "birthdate"))
@@ -409,12 +421,11 @@ if __name__ == "__main__":
 
     #db.remove (Recherche.name == "TOURNOI DES TSARS")
 
- """
+"""
 
-dico = {'name': 'TOURNOI DES FOUS', 'location': 'New york', 'start_date': datetime.datetime(2023, 1, 1, 0, 0), 'end_date': datetime.datetime(2023, 1, 1, 0, 0), 'number_of_rounds': '', 'timecontrol': 'bullet', 'description': '', 'players': [], 'rounds': []}
+    #Crée une liste de toutes les valeurs correspondant à la clé donnée (fieldname):
+    result = [r['name'] for r in db]
+    print(result)
 
-dico = Serialization.serialize_all_dates(dico)
 
-print(dico)
-    
 

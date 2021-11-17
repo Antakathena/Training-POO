@@ -5,6 +5,9 @@ from typing import Tuple
 import P4Modeles
 import P4Vues
 
+from tinydb import TinyDB, Query
+
+
 
 """Nous avons ici commandes/managers"""
 
@@ -64,16 +67,21 @@ class MenuManager(Controller):
         Créé un controleur en fonction de la demande de l'utilisateur."""
         
         name = requested_manager.name
+        
 
         while True:
             print("info dev : Nouvelle boucle dans MenuManager\n")
             answer = requested_manager.view.show() # ou self.show(requested_manager) plutôt?
             name = requested_manager.choices[answer]
 
-            if name.startswith("Menu"):
+            if name.startswith("Menu" or "Liste"):
                 requested_manager = ManagerFactory(name).make_menu()
             elif name.startswith("Rapport:"):
                 requested_manager = ManagerFactory(name).make_report()
+            elif name.startswith("Selectionner"):
+                # on choisit le tournoi
+                tournament = TournamentManager()
+                tournament.select_players() #blop  
             else :
                 requested_manager = ManagerFactory(name).make_form()
                 answers = requested_manager.view.show()
@@ -165,7 +173,7 @@ class PlayerManager(Controller) :
         self.adapt_answers()
         player = P4Modeles.Player(*self.answers)
         P4Modeles.Player.insert(player)
-        print(f"\nAjout d'un joueur à la base de donnée : {player}\n") 
+        print(f"\nJoueur ajouté à la base de donnée : {player}\n") 
 
     def execute(self) : # changer pour "save?"
         self.adapt_answers()
@@ -188,31 +196,77 @@ class TournamentManager(Controller) :
         print(f"\nAjout d'un tournoi à la base de donnée : {tournament}\n") 
    
     def execute(self):
+        """Ajoute un joueur dans la db depuis le formulaire"""
         self.adapt_answers()
         self.add_new()
+
+    def select_players(self):
+        """Montre la liste des tournois pour choisir à quel tournoi on ajoute des joueurs.
+        Puis demande de saisir un nom. Ajoute le nom (ça devrait suffir) à la liste players dans ce tournoi.
+        Réagit si le nom y est déjà et prévient si la liste contient un nombre pair ou impair de joueurs."""
+        db = P4Modeles.Database()
+        #afficher tous les tournois contenus dans la db. A changer pour le rapport des tournois qd prêt
+        tournois = P4Modeles.Database.get_tournaments_list()
+        P4Vues.TournamentListView(tournois).show()
+        # fait choisir un tournoi
+        tournoi_choisi = P4Vues.TournamentListView(tournois).choose_tournament()
+        tournoi_choisi = db.get_in_db(tournoi_choisi["name"])
+        print(tournoi_choisi)
+        # fait entre un nom de joueur
+        Entrer_nom = P4Vues.PlayerSelectionView()
+        joueur_choisi = Entrer_nom.show()
+        # va chercher le joueur dans la db
+        if db.check_if_in_db(joueur_choisi) == True:
+            P4Modeles.Tournament.add_to_playerslist(joueur_choisi)
+
+
+        
+
 
 if __name__ == "__main__":
 
     print("\n\n----------Essais sur les Controleurs de Training ----------")
     print("\n----------Essais sur ManagerFactory :----------\n")
 
-# 1-afficher la vue d'accueil
+    # 1-afficher la vue d'accueil
     welcome = P4Vues.Welcome()
     welcome.show()
 
-# 2-afficher le menu principal
+    # 2-afficher le menu principal
+    """
     menu_principal = ManagerFactory("Menu principal").make_menu()
     requested_manager = menu_principal.initial_manager()
     MenuManager.react_to_answer(menu_principal, requested_manager)
+    """
+    # 3-afficher le formulaire pour enregistrer un nouveau joueur (inscrire 8 joueurs au moins ds la db)
 
-# 3-afficher le formulaire pour enregistrer un nouveau joueur (inscrire 8 joueurs au moins ds la db)
+    #enregistrer_joueur = ManagerFactory("Entrer un nouveau joueur").make_form()
+    #enregistrer_joueur.react_to_answer()
 
-#enregistrer_joueur = ManagerFactory("Entrer un nouveau joueur").make_form()
-#enregistrer_joueur.react_to_answer()
+    # 4-afficher le formulaire pour enregistrer un nouveau tournoi
 
-# 4-afficher le formulaire pour enregistrer un nouveau tournoi
+    # 5-modifier le tournoi (u.a ajouter 8 joueurs)
 
-# 5-modifier le tournoi (u.a ajouter 8 joueurs)
+    # 6-Lancer un tournoi (vérifier qu'infos complètes)
+    # Tournoi : {{round 1 : [(j1, score, j5, score), (j2, score, j6, score), etc]}
 
-# 6-Lancer un tournoi (vérifier qu'infos complètes)
-# Tournoi : {{round 1 : [(j1, score, j5, score), (j2, score, j6, score), etc]}
+
+
+    db = P4Modeles.Database()
+
+    #test_update = db.change("name", "TOURNOI DES ROIS", "number_of_rounds","4")
+    #test_update = db.change("name", "TOURNOI DES ROIS", "time_control","bullet")
+
+    
+    test_remove = db.delete("firstname","Bruce")
+    objet_chercher = "WAYNE"
+    test_search = db.get_in_db(objet_chercher)
+    resultat= test_search
+    print(resultat)
+
+    # Find all documents (dict objects) that contain 'a' key
+    # and set value of key 'a' to 2
+    #db.update({'a': 2}, Query().a.exists())
+
+
+

@@ -1,16 +1,17 @@
 import abc
 import datetime
 from dataclasses import dataclass
-# import UIBase non car pb import circulaire, solution : la vue n'a pas à connaitre les controleurs
+# pb import circulaire, solution : la vue n'a pas à connaitre les controleurs
 
 MENUS_CHOICES = {
     "Menu principal" : ("Menu tournois","Menu joueurs","Menu rapports"),
-    "Menu joueurs": ("Entrer un nouveau joueur","Menu des rapports (joueurs)","Menu principal"),
-    "Menu tournois": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu des rapports (tournois)","Menu principal"),
+    "Menu joueurs": ("Entrer un nouveau joueur", "Modifier un joueur","Menu principal"),
+    "Menu tournois": ("Entrer un nouveau tournoi", "Modifier un tournoi", "Selectionner les joueurs", "Lancer le tournoi","Menu principal"),
     "Menu lancer le tournoi": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu principal"),
     "Menu lancer le round": ("Lancer le round","Menu principal"),
-    "Menu des rapports (joueurs)":("Rapports pas encore disponibles","Menu principal"),
-    "Menu des rapports (tournois)":("Rapports pas encore disponibles","Menu principal"),
+    "Menu des rapports":("Liste des tournois", "Liste des joueurs par classement","Liste des joueurs par ordre alphabétique","Menu principal"),
+    "Liste des informations du tournoi" : ("Liste des joueurs par ordre alphabétique", "Liste des joueurs par classement",
+        "Liste des matchs", "Liste des tous (déroulé du tournoi)","Menu principal")
 }
 
 FORMS_FIELDS = {
@@ -21,13 +22,23 @@ FORMS_FIELDS = {
         "Genre (h/f):",
         "Classement :"),
     "Entrer un nouveau tournoi" : (
-        "Nom :",
+        "Nom (Commencer pas tournoi):",
         "Lieu :", 
         "Date de début (**/**/****):",
         "Date de fin (**/**/****):",
         "Nombre de tours (facultatif) :",
         "Contrôle du temps (bullet/blitz/coup rapide):", 
         "Description (factulatif):")
+}
+
+# en fait ça fera une fonction pour chaque obtention de liste + choix du retour au menu:
+REPORTS = {
+    "Liste des tournois" :("tournois = P4Modeles.Database.get_tournaments_list()"),
+    "Liste des informations du tournoi" : (
+        "Liste des joueurs par ordre alphabétique", "Liste des joueurs par classement",
+        "Liste des matchs", "Liste des tous (déroulé du tournoi)"),
+    "Liste des joueurs par classement":(),
+    "Liste des joueurs par ordre alphabétique":()
 }
 
 class View(abc.ABC):
@@ -84,11 +95,10 @@ class MenuView(View):
             else:
                 break
         answer = int(answer) - self.start
-        print(f"\ninfo dev : la vue retourne la réponse :{answer}")
+        #print(f"\ninfo dev : la vue retourne la réponse :{answer}")
         # On obtient un int coorespondant à choix -1:
         return answer
                 
-
 
 class FormView(View):
     def __init__(self, name):
@@ -136,8 +146,8 @@ class FormView(View):
             answer.append(current)
         self.verify_the_answer(questions,answer) # peut-être complètement inutile
         
-        for pair in (zip(questions,answer)):
-            print (pair)
+        #for pair in (zip(questions,answer)):
+        #    print (pair)
         return answer
 
 
@@ -157,31 +167,51 @@ class ReportView(View):
     """ Défini comment les infos des rapports apparaissent à l'utilisateur"""
     pass
 
-class PlayerView :
-    """ Défini comment les infos sur les joueurs apparaissent à l'utilisateur"""
-    # sauf si c'est dans le modèle
-    pass
+class PlayerSelectionView(View) :
+    def __init__(self, name = "Préparation de la liste des joueurs du tournoi" ):
+        super().__init__(name)
 
-class TournamentView :
-    """ Défini comment les infos sur les tournois apparaissent à l'utilisateur"""
-    # sauf si c'est dans le modèle
-    pass
+    def choose_tournament(self):
+        MenuView("Liste des tournois")
+        tournoi_choisi = input("Saisissez le tournoi choisi:")
+        return tournoi_choisi
 
-if __name__ == "__main__":
-    print("\n\n----------Essais sur les vues de training ----------")
+    def show(self):
+        super().show()    
+        answer = input ("Veuiller indiquer le nom du joueur à ajouter :")
+        return answer
+
+class TournamentListView(View) : # à supprimer quand le rapport "liste des tournois" sera prêt.
+    def __init__(self, tournois, name = "Liste des tournois enregistrés"):
+        super().__init__(name)
+        self.tournois = tournois
+
+    def show(self):
+        super().show()
+        for t in self.tournois:
+            print(t)
     
-    #welcome = Welcome()
-    #welcome.show()
+    def choose_tournament(self):
+        tournoi_choisi = input("Saisissez le tournoi choisi:")
+        return tournoi_choisi
 
-    menu_principal = MenuView("Menu principal")
-    menu_principal.show()
+    
+    if __name__ == "__main__":
+
+        print("\n\n----------Essais sur les vues de training ----------")
+    
+        #welcome = Welcome()
+        #welcome.show()
+
+        menu_principal = MenuView("Menu principal")
+        menu_principal.show()
 
 
-    #menu_joueur = MenuView("menu joueurs")
-    #menu_joueur.show()
+        #menu_joueur = MenuView("menu joueurs")
+        #menu_joueur.show()
 
-    #new_player_form = FormView("Entrer un nouveau joueur")
-    #new_player_form.show()
+        #new_player_form = FormView("Entrer un nouveau joueur")
+        #new_player_form.show()
 
 
 
