@@ -174,6 +174,63 @@ class Database:
                 registered_tournaments.append(r)
         return registered_tournaments
 
+    def get_players_list(self = db):
+        """Renvoie la liste de tous les joueurs présents dans la base de données.
+        Utiliser avec : players_in_db = Report.get_players_list()"""
+        registered_players = []
+        result = [r['name'] for r in db]
+        for r in result:
+            if not "TOURNOI" in r: # il n'y a que les joueurs qui n'ont pas "tournoi"
+                registered_players.append(r)
+        return registered_players
+
+    def get_names_and_ratings(self = db, players_list =[]):
+        """ Donne une liste de dictionnaires contenant pour nom, prénom et classement de chaque joueur.
+        Utiliser avec names_and_ratings = Report.get_names_and_ratings(players_list = players_in_db)"""
+        players_names_and_ratings =[]
+        for player in players_list :
+            instance_db = Database()
+            player = instance_db.get_in_db(player)
+            name = player[0]
+            firstname = player[1]
+            rating = player[4]
+            player_name_and_rating = {"name" : name, "firstname": firstname, "rating" : rating }
+            players_names_and_ratings.append(player_name_and_rating)
+        return players_names_and_ratings
+
+    def sort_by_rating(self = db, list_to_sort = []):
+        """Renvoie la liste de dictionnaire des joueurs triée par classement.
+        Utiliser avec : sorted_list = Report.sort(list_to_sort = names_and_ratings)"""
+        sorted_list = sorted(list_to_sort, key=lambda k: k["rating"], reverse=True)
+        pretty_sorted_list =[]
+        for player in sorted_list:
+            pplayer = "{firstname} {name}, classement :{rating}".format(**player)
+            pretty_sorted_list.append(pplayer)
+        return sorted_list, pretty_sorted_list
+
+    def sort_by_name(self = db, list_to_sort = []):
+        """Renvoie la liste de dictionnaire des joueurs triée par nom.
+        Utiliser avec : sorted_list = Report.sort(list_to_sort = names_and_ratings)"""
+        sorted_list = sorted(list_to_sort, key=lambda k: k["name"])
+        pretty_sorted_list =[]
+        for player in sorted_list:
+            pplayer = "{firstname} {name}".format(**player)
+            pretty_sorted_list.append(pplayer)
+        return sorted_list, pretty_sorted_list
+
+    def get_a_report(self = db, elt = "mes lunettes")->list :
+        if isinstance(elt, str):
+            elt = elt.upper()
+        else : elt = elt
+        report = []
+        result = [r['name'] for r in db]
+        for r in result:
+            if elt in r:
+                report.append(r)
+        print(report)
+        return report
+        # Use with : rech = Report.get_a_report(elt="TOURNOI")
+
 #idée ?
 class TimeControl(Enum):
     """Types de parties possibles"""
@@ -242,8 +299,6 @@ class Player(Model):
 
 @dataclass
 class Tournament(Model):
-    MATCHS = [] # [(j1, j5), (j2, j6), (j3, j7), (j4, j8) etc...] 
-    
     name : str
     location : str
     start_date : datetime = datetime.datetime.strptime("06/06/2025", "%d/%m/%Y")
