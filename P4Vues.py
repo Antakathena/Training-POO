@@ -28,7 +28,7 @@ FORMS_FIELDS = {
         "Date de fin (**/**/****):",
         "Nombre de tours (facultatif) :",
         "Contrôle du temps (bullet/blitz/coup rapide):", 
-        "Description (factulatif):")
+        "Description (facultatif):")
 }
 
 # en fait ça fera une fonction pour chaque obtention de liste + choix du retour au menu:
@@ -40,6 +40,18 @@ REPORTS = {
     "Liste des joueurs par classement":(),
     "Liste des joueurs par ordre alphabétique":()
 }
+
+class ErrorMessages:
+    WRONG_DATES = [
+"La date de début doit être antérieure à la date de fin.",
+"La date de début ne peut être antérieure à la date d'aujoud'hui.",
+
+"\nRetour au menu principal\n"
+]
+    def show(self, i : int, sentences = WRONG_DATES) :
+        sentence = sentences[i]
+        print(sentence, sentences[-1])
+
 
 class View(abc.ABC):
     """ méthode appelée par un contrôleur, affiche des choses à l'écran, les renvoie au contrôleur"""
@@ -53,9 +65,6 @@ class View(abc.ABC):
     @abc.abstractmethod
     def show(self):
         self.show_title()
-
-    def verify_the_answer(self, sollicitation, answer):
-        return NotImplementedError
     
       
 class Welcome(View):
@@ -64,17 +73,21 @@ class Welcome(View):
 
     def show(self):
         super().show()    
-        print ("Bienvenue")
+        print ("------------Bienvenue !")
 
 
 class MenuView(View):
-    def __init__(self, name, start=1):
+    def __init__(self, name, choices =None, start=1):
         super().__init__(name)
+        self.choices = choices
         self.start = start
   
     def show(self):
         super().show()
-        choices = MENUS_CHOICES[self.name]
+        if self.choices == None:
+            choices = MENUS_CHOICES[self.name]
+        else:
+            choices = self.choices
         nbr_of_choices = len(choices)
         for num, choice in enumerate(choices, start= self.start):
             print(f"{num}) {choice}")
@@ -83,8 +96,8 @@ class MenuView(View):
             # on vérifie que l'utilisateur entre une valeur correcte
             try :
                 answer = answer.strip()
-                len(answer) == 1
-                answer.isdigit()
+                if len(answer) != 1 or not answer.isdigit():
+                    raise ValueError
                 answer = int(answer)
             except ValueError :
                 print(f"{answer} n'est pas un choix possible.")
@@ -141,61 +154,72 @@ class FormView(View):
                         current == ""
                     except ValueError:
                         print(f"La réponse doit être laissée vide ou être un chiffre.\
-                            Vous avez saisi {self.answers}. Veuillez répondre à nouveau :")  
+                            Vous avez saisi {self.answers}. Veuillez répondre à nouveau :")
+            while "date de début" in question:
+                if current > datetime.datetime.now():
+                    break
+                else : 
+                    print("La date de début du tournoi ne peut être antérieure à celle d'aujourd'hui")
+                    print(question)
+                    current = input() 
 
             answer.append(current)
-        self.verify_the_answer(questions,answer) # peut-être complètement inutile
-        
-        #for pair in (zip(questions,answer)):
-        #    print (pair)
         return answer
 
-
-    def verify_the_answer(self, questions,answer : list):
-        try :
-            assert isinstance(answer,list)
-        except ValueError :
-            print(f"{answer} n'est pas une liste !")
-        try : 
-            assert len(answer) == len(questions)# on vérifie que les types sont respectés
-        except AssertionError :
-            print(f"Vous n'avez pas répondu à toutes les questions.")
-        else :
-            return answer
-
-class ReportView(View):
-    """ Défini comment les infos des rapports apparaissent à l'utilisateur"""
-    pass
-
-class PlayerSelectionView(View) :
-    def __init__(self, name = "Préparation de la liste des joueurs du tournoi" ):
+class TournamentView(View):
+    def __init__(self, name = f"Lancement du tournoi"):
         super().__init__(name)
-
-    def choose_tournament(self):
-        MenuView("Liste des tournois")
-        tournoi_choisi = input("Saisissez le tournoi choisi:")
-        return tournoi_choisi
-
-    def show(self):
-        super().show()    
-        answer = input ("Veuiller indiquer le nom du joueur à ajouter :")
-        return answer
-
-class TournamentListView(View) : # à supprimer quand le rapport "liste des tournois" sera prêt.
-    def __init__(self, tournois, name = "Liste des tournois enregistrés"):
-        super().__init__(name)
-        self.tournois = tournois
 
     def show(self):
         super().show()
-        for t in self.tournois:
-            print(t)
-    
-    def choose_tournament(self):
-        tournoi_choisi = input("Saisissez le tournoi choisi:")
-        return tournoi_choisi
+        print(f"-----------Tour n°1 : Appeirage des joueurs...----------") 
 
-    
+    def start_shift(self):
+        while True :
+            answer = input("Commencer le tour?(l'heure sera automatiquement enregistrée.) (Saisir O)")
+            if answer == "O":
+                start_time = datetime.datetime.now() # ajouter à round_infos (et passer à add_to_shift_infos)
+                print(start_time.strftime("%d/%m/%Y, %H:%M:%S"))
+                break
+            else :
+                continue
+        return start_time
+
+    def end_shift(self):
+        while True :
+            answer = input("Finir le tour?(l'heure sera automatiquement enregistrée.) (Saisir O)")
+            if answer == "O":
+                end_time = datetime.datetime.now()
+                print(end_time.strftime("%d/%m/%Y, %H:%M:%S"))
+                break
+            else :
+                continue
+        return end_time
+
+    def get_scores(self, pairings) -> dict:
+        """Renvoie la liste de dictionnaires des matchs de round où
+        joueur : score (vainqueur =1, perdant =0, ex-equo = 0.5)"""
+        # NB : liste de tuples demandé dans livret technique?
+        possible_results = ["Joueur 1 gagne", "Joueur 2 gagne", "Egalité"]
+        scores_dict = {}
+        scores = []
+        for match in pairings :
+            pretty_match = f" {match[0]} vs {match[1]}"
+            answer = MenuView(f"Veuillez indiquer le résultat du match:{pretty_match}", possible_results).show()
+            if answer == 0:
+                result = (1.0,0.0)
+            elif answer == 1:
+                result = (0.0,1.0)
+            else:
+                result = (0.5,0.5)
+            
+            match_score = tuple(zip(match,result)) # créé la liste de tuples demandée par l'énoncé
+            for_total_score = dict(zip(match,result))
+            scores_dict.update(for_total_score) # ajoute au dict des scores
+            scores.append(match_score)
+        return scores, scores_dict #à ajouter à info round -> find_total_score dans P4Modeles.Tournament
+
+
     if __name__ == "__main__":
 
         print("\n\n----------Essais sur les vues de training ----------")
@@ -203,8 +227,8 @@ class TournamentListView(View) : # à supprimer quand le rapport "liste des tour
         #welcome = Welcome()
         #welcome.show()
 
-        menu_principal = MenuView("Menu principal")
-        menu_principal.show()
+        #menu_principal = MenuView("Menu principal")
+        #menu_principal.show()
 
 
         #menu_joueur = MenuView("menu joueurs")
@@ -212,8 +236,4 @@ class TournamentListView(View) : # à supprimer quand le rapport "liste des tour
 
         #new_player_form = FormView("Entrer un nouveau joueur")
         #new_player_form.show()
-
-
-
-
 

@@ -1,12 +1,8 @@
 import abc
 import datetime
 from dataclasses import dataclass, asdict, field
-from typing import Tuple
 import P4Modeles
 import P4Vues
-
-from tinydb import TinyDB, Query
-
 
 
 """Nous avons ici commandes/managers"""
@@ -67,10 +63,9 @@ class MenuManager(Controller):
         Créé un controleur en fonction de la demande de l'utilisateur."""
         
         name = requested_manager.name
-        
 
         while True:
-            print("info dev : Nouvelle boucle dans MenuManager\n")
+            #print("info dev : Nouvelle boucle dans MenuManager\n")
             answer = requested_manager.view.show() # ou self.show(requested_manager) plutôt?
             name = requested_manager.choices[answer]
 
@@ -78,10 +73,14 @@ class MenuManager(Controller):
                 requested_manager = ManagerFactory(name).make_menu()
             elif name.startswith("Rapport:"):
                 requested_manager = ManagerFactory(name).make_report()
-            elif name.startswith("Selectionner"):
-                # on choisit le tournoi
+            elif name.startswith("Selectionner les joueurs"):
                 tournament = TournamentManager()
-                tournament.select_players() #blop  
+                tournament.select_players()
+                requested_manager = ManagerFactory("Menu tournois").make_menu()
+            elif name == "Lancer le tournoi":
+                tournament = TournamentManager()
+                tournament.play_tournament()
+                # ajouter le retour à un menu?
             else :
                 requested_manager = ManagerFactory(name).make_form()
                 answers = requested_manager.view.show()
@@ -95,6 +94,13 @@ class MenuManager(Controller):
             
     def show(self, requested_manager : Controller):
         requested_manager.view.show()
+
+    @staticmethod
+    def back_to_main_menu():
+        back_to_menu = ManagerFactory("Menu principal").make_menu()
+        requested_manager = back_to_menu.initial_manager()
+        MenuManager.react_to_answer(back_to_menu, requested_manager)
+
 
    
         # form ou menu, ou (?) rapport controleur = ManagerFactory.make(le nom de l'IU à générer)
@@ -161,7 +167,7 @@ class ManagerFactory:
         return NotImplementedError
         
 class PlayerManager(Controller) :
-    def __init__ (self, answers):
+    def __init__ (self, answers = None):
         self.answers = answers
 
     def adapt_answers(self): # Nom, Prénom, Date de naissance, genre, classement
@@ -171,9 +177,15 @@ class PlayerManager(Controller) :
 
     def add_new(self):
         self.adapt_answers()
-        player = P4Modeles.Player(*self.answers)
-        P4Modeles.Player.insert(player)
-        print(f"\nJoueur ajouté à la base de donnée : {player}\n") 
+        try:
+            player = P4Modeles.Player(*self.answers)
+        except ValueError: 
+            print("Le joueur doit avoir entre 18 et 99 ans.")
+        # ça ça ne marche pas, comment faire que les exceptions dans le modèle soient traduites par un print dans la vue?
+        else:
+            P4Modeles.Database.insert(player)
+            # _logger.debug("Joueur ajouté à la base ...")
+            print(f"\nJoueur ajouté à la base de donnée : {player}\n") 
 
     def execute(self) : # changer pour "save?"
         self.adapt_answers()
@@ -182,17 +194,28 @@ class PlayerManager(Controller) :
         # def execute? insert dans tinydb
 
 class TournamentManager(Controller) :
-    def __init__ (self, answers):
+    def __init__ (self, answers=None):
         self.answers = answers
 
     def adapt_answers(self):   # Nom, Lieu, Date de début, Date de fin, Nombre de tours, Contrôle du temps, Description
+        today = datetime.datetime.now()
+        vue = P4Vues.ErrorMessages()
         self.answers[0] = self.answers[0].upper()
         self.answers[1] = self.answers[1].capitalize()
+        if self.answers[2]<self.answers[3] :
+            vue.show(0)
+            MenuManager.back_to_main_menu()
+        if self.answers[2]< today :
+            vue.show(1)
+            MenuManager.back_to_main_menu()
+        if self.answers[4] == "":
+            self.answers[4] = None
 
     def add_new(self):
         self.adapt_answers()
-        tournament = P4Modeles.Tournament(*self.answers) 
-        P4Modeles.Tournament.insert(tournament)
+        tournament = P4Modeles.Tournament(*self.answers)
+        database = P4Modeles.Database()
+        database.insert(dataclass_instance_to_insert = tournament)
         print(f"\nAjout d'un tournoi à la base de donnée : {tournament}\n") 
    
     def execute(self):
@@ -200,27 +223,101 @@ class TournamentManager(Controller) :
         self.adapt_answers()
         self.add_new()
 
+    def select_tournament(self):
+        tournamentslist = P4Modeles.Report.get_tournaments_list()
+        tournamentslist.append("Menu principal")
+        choices = tournamentslist
+        vue = P4Vues.MenuView(name ="Selectionner un tournoi :", choices = choices)
+        answer = vue.show()
+        if answer == len(tournamentslist) -1 :
+            MenuManager.back_to_main_menu()
+        else :
+            tournoi_choisi = choices[answer]
+            return tournoi_choisi
+
     def select_players(self):
         """Montre la liste des tournois pour choisir à quel tournoi on ajoute des joueurs.
         Puis demande de saisir un nom. Ajoute le nom (ça devrait suffir) à la liste players dans ce tournoi.
         Réagit si le nom y est déjà et prévient si la liste contient un nombre pair ou impair de joueurs."""
         db = P4Modeles.Database()
-        #afficher tous les tournois contenus dans la db. A changer pour le rapport des tournois qd prêt
-        tournois = P4Modeles.Database.get_tournaments_list()
-        P4Vues.TournamentListView(tournois).show()
-        # fait choisir un tournoi
-        tournoi_choisi = P4Vues.TournamentListView(tournois).choose_tournament()
-        tournoi_choisi = db.get_in_db(tournoi_choisi["name"])
-        print(tournoi_choisi)
-        # fait entre un nom de joueur
-        Entrer_nom = P4Vues.PlayerSelectionView()
-        joueur_choisi = Entrer_nom.show()
-        # va chercher le joueur dans la db
-        if db.check_if_in_db(joueur_choisi) == True:
-            P4Modeles.Tournament.add_to_playerslist(joueur_choisi)
+        tournoi_choisi = self.select_tournament()
+        tournoi: dict = db.get_dict_from_db(tournoi_choisi)
+        tournoi: P4Modeles.Tournament = P4Modeles.Tournament(*tournoi.values())
+        print(tournoi)
+        while True :
+            # on fait choisir parmis les joueurs dans la db :
+            infos = P4Modeles.Report()
+            players_in_db = infos.get_players_list()
+            choices = infos.sort_by_name(players_in_db)[1]
+            vue = P4Vues.MenuView(name ="Selectionner le joueur", choices = choices)
+            answer = vue.show()
+            joueur_choisi = infos.sort_by_name(players_in_db)[0][answer]
+            joueur_choisi = joueur_choisi["name"]
+            # va chercher le joueur dans la db
+            if db.check_if_in_db(joueur_choisi):
+                if not tournoi.add_to_playerslist(joueur = joueur_choisi): # équivalent de is False
+                    print("Impossible d'ajouter ce joueur (déjà ajouté).")
+            answer = input("Selectionner un autre joueur? O/n")
+            if answer == "O":
+                continue
+            else :
+                break
+        return "Joueurs ajoutés dans la liste de joueurs du tournoi." #liste [nom du tournoi, nom joueur1, nom joueur2, etc...]
+
+    def play_tournament(self):
+        db = P4Modeles.Database()
+        tournoi_choisi = self.select_tournament()
+        tournoi_dict: dict = db.get_dict_from_db(tournoi_choisi)
+        instance_de_tournament: P4Modeles.Tournament = P4Modeles.Tournament(*tournoi_dict.values())
+        total_scores = instance_de_tournament.initialize_total_scores ()
+        tournoi:str = tournoi_dict["name"] # nom du tournoi dont a besoin l'instance de shift et la vue
+        vue = P4Vues.TournamentView(name = f"Lancement du {tournoi}")
+        vue.show()
+
+        if not len(tournoi_dict["players"])%2 ==0:
+            print("Le nombre de joueurs n'est pas pair. Impossible de lancer le tournoi.")
+            return MenuManager.back_to_main_menu()
+
+        # on peut rajouter une vue début du tour qui indique "Tour n°{shift_number} et liste des matchs":
+        shift = instance_de_tournament.which_shift() # on créé un objet round
+        matches = shift.create_pairs_shift1() #liste de tuples
+        for match in matches:
+            print(f"match : {match}")
+   
+        while True :
+            shift.update_infos( matches= matches) # utile?
+            instance_de_tournament.add_to_matches(matches = matches) # avt intervention c'était ({"matches" = matches})
+            start_time = P4Vues.TournamentView.start_shift(shift) # à ajouter à infos
+            shift.update_infos(start_time = start_time)  
+            end_time = P4Vues.TournamentView.end_shift(shift) # ajouter à round_infos (et passer à add_to_shift_infos)
+            shift.update_infos(end_time = end_time)
+            scores  = P4Vues.TournamentView.get_scores(shift, matches) #[0] = liste de tuple, [1] = dict
+            total_scores.update(scores[1])
+            print(total_scores)
+            shift.update_infos(scores = scores[1]) # attention : changé de scores[0] car ne renvoyait pas le tupple donc dico
+            # à ce stade le dict des infos du tour est complet, il faut le passer au tournoi dans la db.
+            shift_infos = shift.infos
+            instance_de_tournament.add_to_shifts(shift_infos= shift_infos)
+
+            shift = instance_de_tournament.which_shift(shift.shift_number)
+
+            if shift == False: # ça veut dire qu'on a fini le dernier tour.
+                break
+            else :
+                matches = shift.create_pairs2(total_scores=total_scores)
+                continue
+
+        return MenuManager.back_to_main_menu() 
 
 
-        
+        # calculer les paires du 1er round,
+        # demander si lancer le 1er round O/n
+        # O -> enregistrer l'heure de début du round
+        # finir le tournoi O/n -> enregistrer l'heure de fin du round et demander les scores
+        # les scores vont dans Tournoi : {{round 1 : [(j1, score, j5, score), (j2, score, j6, score), etc]}
+        # calculer les paires du 2ème round
+        # etc. tant que nbr de rounds <= nbr annoncé
+        # Le tournoi est terminé
 
 
 if __name__ == "__main__":
@@ -245,28 +342,29 @@ if __name__ == "__main__":
 
     # 4-afficher le formulaire pour enregistrer un nouveau tournoi
 
-    # 5-modifier le tournoi (u.a ajouter 8 joueurs)
+    # 5-ajouter 8 joueurs)
 
     # 6-Lancer un tournoi (vérifier qu'infos complètes)
     # Tournoi : {{round 1 : [(j1, score, j5, score), (j2, score, j6, score), etc]}
-
-
 
     db = P4Modeles.Database()
 
     #test_update = db.change("name", "TOURNOI DES ROIS", "number_of_rounds","4")
     #test_update = db.change("name", "TOURNOI DES ROIS", "time_control","bullet")
 
-    
-    test_remove = db.delete("firstname","Bruce")
-    objet_chercher = "WAYNE"
-    test_search = db.get_in_db(objet_chercher)
-    resultat= test_search
-    print(resultat)
-
     # Find all documents (dict objects) that contain 'a' key
     # and set value of key 'a' to 2
     #db.update({'a': 2}, Query().a.exists())
+
+    tournoi = P4Modeles.Tournament(name = "Tournoi Test", location = "Honolulu", timecontrol = "blitz")
+    print(tournoi)
+
+    tournoi = TournamentManager(tournoi).play_tournament()
+
+
+
+
+
 
 
 
