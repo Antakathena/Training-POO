@@ -281,10 +281,10 @@ class TournamentManager(Controller) :
         # on peut rajouter une vue début du tour qui indique "Tour n°{shift_number} et liste des matchs":
         shift = instance_de_tournament.which_shift() # on créé un objet round
         matches = shift.create_pairs_shift1() #liste de tuples
-        for match in matches:
-            print(f"match : {match}")
-   
+
         while True :
+            for match in matches:
+                print(f"match : {str(match)}")
             shift.update_infos( matches= matches) # utile?
             instance_de_tournament.add_to_matches(matches = matches) # avt intervention c'était ({"matches" = matches})
             start_time = P4Vues.TournamentView.start_shift(shift) # à ajouter à infos

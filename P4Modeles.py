@@ -3,6 +3,7 @@ import abc
 from dataclasses import dataclass, field, asdict
 import datetime
 import re
+import itertools
 from enum import Enum, auto
 from pprint import pprint
 from tinydb import TinyDB, Query, operations
@@ -483,26 +484,34 @@ class Shift(Model):
             #assert isinstance(dico, dict) # print("Attention  : changement de syntaxe pour matches = matches et **")
             self.infos.update(dico)
         return True
-    """
-    def add_to_shift_infos(self, round_infos):
-        #Doit mettre à jour la db avec les infos du tour
-        Recherche = Query()
-        db.update(operations.add("rounds", round_infos), Recherche.name == self.tournament) # nb : rounds = {}
-        # print du tournoi pour vérifier :
-        database = Database()
-        rech = database.get_in_db(to_find=self.tournament)
-        print(f"{round_infos} ajouté, état du tournoi = \n{rech}")
-        return True
-    """
 
     def create_pairs2(self, total_scores):
-        # sort_by_scores():
-        # récupérer les scores totaux de chaque joueur :
+        players_by_scores = self.sort_by_scores(total_scores)
+        sorted_list_by_score_and_rating = self.sort_by_score_and_rating(players_by_scores)
+        sorted_names_list = self.simplify_list(sorted_list_by_score_and_rating)
+        suggested_matches = self.suggested_matches(sorted_names_list)
+        played_matches = self.get_played_matches() # à changer si je mets une variable au lieu d'un elt en plus au tournoi  
+        set_played_matches = self.change_list_to_tuple(played_matches)
+        already_played2 = self.check_for_suggested_matches_in_played_matches(suggested_matches,played_matches) 
+        already_played = self.get_played_matches2(suggested_matches, set_played_matches)
+        if already_played == []:
+            return suggested_matches
+        else :
+            other_propositions = self.propose_other_matches(already_played,sorted_names_list, set_played_matches)
+            return other_propositions
+
+
+    def sort_by_scores(self, total_scores):
+        """ 
+        Entrée : variable total_scores (dict. k = joueur, v = score total durant ce tournoi)
+        Sortie : liste de dict. (k = 'name', 'fistname', 'rating', 'total_score')
+
+        """
+        # récupérer les scores_totaux des joueurs :
         players_total_scores = total_scores
         database = Database()
         tournoi_dict: dict = database.get_dict_from_db(self.tournament)
-        instance_de_tournament: Tournament = Tournament(*tournoi_dict.values())
-
+        
         # récupérer les noms complets avec classement :
         info = Report()
         players = tournoi_dict["players"]
@@ -514,43 +523,97 @@ class Shift(Model):
                 to_add = {"total_score": v}
                 if k in dico_joueur.values():
                     dico_joueur.update(to_add)
-        print(players)
 
         # trier par score :
-        sorted_list = sorted(players, key=lambda k: k["total_score"], reverse=True)
-        sorted_names_list = []
-        for elt in sorted_list:
+        players_by_scores = sorted(players, key=lambda k: k["total_score"], reverse=True)
+        return players_by_scores
+     
+    def sort_by_score_and_rating(self, players_by_scores):
+        # trouver les joueurs avec le même score:
+        def get_score(player):
+            return player["total_score"]
+        players_group = itertools.groupby(players_by_scores, get_score)
+
+        # trier ceux avec un score égal selon leur classement:
+        groups = [] # -> liste de listes correspondant aux joueurs qui ont eu le même score
+        for key, group in players_group :
+            groups.append(list(group))    
+
+        sorted_list_by_score_and_rating = [] # -> dict des joueurs trié par scores égaux et classement
+        for group in groups:
+            order_by_rating = sorted((group), key=lambda k: k["rating"], reverse=True)
+            for j in order_by_rating:
+                    sorted_list_by_score_and_rating.append(j)
+        return sorted_list_by_score_and_rating
+
+    def simplify_list(self, list_of_dict):
+        # On ne garde que les noms :
+        sorted_names_list = [] # -> noms des joueurs triés par scores puis classement pour un même score
+        for elt in list_of_dict:
             name = elt.get('name')
             sorted_names_list.append(name)
-        print(f'\nListe des joueurs par score : {sorted_names_list}')    
-        # sorted_list = sorted(players, key=lambda k: dico_joueur[k]["total_score"], reverse=True) ?
+        return sorted_names_list
 
-        # liste des matchs : associer les joueurs par 2:
+    def suggested_matches(self,sorted_names_list):
+        # liste des matchs proposés : associer les joueurs par 2:
         joueurs_x = sorted_names_list[0::2]
         joueurs_y = sorted_names_list[1::2]
         suggested_matches = []
-        
-
         for joueurs_x, joueurs_y in zip(joueurs_x, joueurs_y):
             suggested_match = joueurs_x, joueurs_y
             suggested_matches.append(suggested_match)
-        print(f'\nMatchs proposés : {suggested_matches}')
-
+        #print(f'\nMatchs proposés : {suggested_matches}')
+        return suggested_matches
+    
+    def get_played_matches(self):
+        database = Database()
+        tournoi_dict: dict = database.get_dict_from_db(self.tournament)
         played_matches = tournoi_dict["matches"]
-        print(f"\nMatches déjà joués : {played_matches}")
+        #print(f"\nMatches déjà joués : {played_matches}")
+        return played_matches
 
-        ordering1 = [ tuple(sorted(t)) for t in played_matches ]
-        ordering2 = [ tuple(sorted(t)) for t in sorted_names_list ]
-        print(ordering1)
-        print(ordering2)
+    def check_for_suggested_matches_in_played_matches(self,suggested_matches,played_matches):
+        already_played_matches = []
+        for match in suggested_matches:
+            if match in played_matches:
+                already_played_matches.append(match)
+                print(f"Je ne sais pas si cette méthode marche ou aide : {match}")
+        return already_played_matches
 
-        comparing = []
-        for match in played_matches:
-            comparing.append(sorted(match))
-        
-        dudu = set(suggested_matches) & set(played_matches)
-        print(dudu)
+    def change_list_to_tuple(self,played_matches):
+        set_played_matches = []
+        for elt in played_matches:
+            match = tuple(elt)
+            set_played_matches.append(match)
+        return (set_played_matches) # à remonter pour ne faire qu'une fois. Et pourquoi ils ne sont pas en tuple dans la liste d'instance? 
 
+    def get_played_matches2(self,suggested_matches, set_played_matches):
+        set_propositions = set(suggested_matches)
+        result = set.intersection(set_propositions,set_played_matches) # = matchs déjà joués
+        print(f'matchs déjà joués dans les proposés : {result}')
+
+    def propose_other_matches(self,result,sorted_names_list, set_played_matches):
+        # le problème c'est que si il n'y a qu'un match déjà joué, on a plus d'adversaires à échanger !
+        if len(result) != 0: # donc si des matchs ont déjà été joués
+            suggested_matches = []
+            increment = 0
+            protagonists= sorted_names_list[0::2]
+            antagonists = sorted_names_list[1::2]
+            search_opponent = True
+            joueur_x = protagonists.pop(0)
+            while search_opponent:
+                search_opponent = False
+                match = set(joueur_x,antagonists[increment])
+                if match not in set_played_matches:
+                    antagonists.remove(antagonists[increment])
+                    suggested_matches.append(match)
+                else :
+                    increment += 1
+                    continue
+
+        # trouver l'index de chaque dans la liste :
+        #player_place_in_list_by_score = sorted_list.index(player)
+        """
         while len(sorted_names_list) > 0:
             joueur_x = sorted_names_list.pop(0)
             for joueur_y in sorted_names_list:
@@ -561,8 +624,7 @@ class Shift(Model):
                         break
                 print(f"\nProposés : Match {match}")
                 suggested_matches.append(match)
-
-        return suggested_matches
+        """
 
 
 @dataclass
