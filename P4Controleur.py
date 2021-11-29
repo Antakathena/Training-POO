@@ -302,6 +302,7 @@ class TournamentManager(Controller) :
             shift = instance_de_tournament.which_shift(shift.shift_number)
 
             if shift == False: # ça veut dire qu'on a fini le dernier tour.
+                print("\nFélicitations à tous les participants. Le tournoi est terminé.\n")
                 break
             else :
                 matches = shift.create_pairs2(total_scores=total_scores)

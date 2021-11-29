@@ -431,18 +431,22 @@ class Shift(Model):
     """
     tournament : str # nom du tournoi
     shift_number : int # ou alors on fait un enumerate quelque part
-
-    #shift_matches : list = field(default_factory=list) # liste de tuples
-    #start_time : datetime.datetime = field(default = None)
-    #end_time : datetime.datetime = field(default = None)
-    #shift_scores : dict = field(default_factory=dict)
-    infos : dict = field(default_factory=dict) # ou constante de classe à passer ensuite à tournoi?
+    infos : dict = field(default_factory=dict) # à passer ensuite à tournoi
 
     # tournoi {rounds_infos : {round1 : {tournament name : name, round number : 1, matchs : [(a,b), (c, d), etc],
     # start_time : telle heure, end_time : telle heure, scores : [(a:0, b:1), (c:0.5, d:0.5), etc] }
     
     def __str__(self):   # Pour amélioration, utiliser propriété de dataclasses : for info in dataclasses.fields(Tournament): return str(info)?
         return f"Tour n°{self.shift_number} du {self.tournament}"
+
+    def update_infos(self, dico=None, **to_add_to_infos):
+        """ Ajoute les elt d'un dico au dico infos"""
+        if dico is None:
+            self.infos.update(to_add_to_infos)
+        else:
+            #assert isinstance(dico, dict) # print("Attention  : changement de syntaxe pour matches = matches et **")
+            self.infos.update(dico)
+        return True
 
     def create_pairs_shift1(self) -> list: #(modèle -> controleur -> vue)
         """Renvoie la liste des tuples de matchs du round"""
@@ -462,7 +466,6 @@ class Shift(Model):
             #print(f"Match {first_half} vs {second_half}")
             match = first_half, second_half
             matches.append(match)
- 
         return matches
                   
         # calculer les paires du 1er round, #(modèle -> controleur -> vue)
@@ -476,30 +479,19 @@ class Shift(Model):
         # etc. tant que nbr de rounds <= nbr annoncé
         # Le tournoi est terminé
 
-    def update_infos(self, dico=None, **to_add_to_infos):
-        """ Ajoute les elt d'un dico au dico infos"""
-        if dico is None:
-            self.infos.update(to_add_to_infos)
-        else:
-            #assert isinstance(dico, dict) # print("Attention  : changement de syntaxe pour matches = matches et **")
-            self.infos.update(dico)
-        return True
-
     def create_pairs2(self, total_scores):
         players_by_scores = self.sort_by_scores(total_scores)
         sorted_list_by_score_and_rating = self.sort_by_score_and_rating(players_by_scores)
         sorted_names_list = self.simplify_list(sorted_list_by_score_and_rating)
         suggested_matches = self.suggested_matches(sorted_names_list)
         played_matches = self.get_played_matches() # à changer si je mets une variable au lieu d'un elt en plus au tournoi  
-        set_played_matches = self.change_list_to_tuple(played_matches)
-        already_played2 = self.check_for_suggested_matches_in_played_matches(suggested_matches,played_matches) 
-        already_played = self.get_played_matches2(suggested_matches, set_played_matches)
-        if already_played == []:
+        played_matches = self.change_list_to_tuple(played_matches)
+        already_played = self.matches_not_ok(suggested_matches, played_matches)
+        if already_played == False:
             return suggested_matches
         else :
-            other_propositions = self.propose_other_matches(already_played,sorted_names_list, set_played_matches)
+            other_propositions = self.propose_other_matches(sorted_names_list, played_matches)
             return other_propositions
-
 
     def sort_by_scores(self, total_scores):
         """ 
@@ -569,47 +561,58 @@ class Shift(Model):
         database = Database()
         tournoi_dict: dict = database.get_dict_from_db(self.tournament)
         played_matches = tournoi_dict["matches"]
-        #print(f"\nMatches déjà joués : {played_matches}")
         return played_matches
 
-    def check_for_suggested_matches_in_played_matches(self,suggested_matches,played_matches):
-        already_played_matches = []
-        for match in suggested_matches:
-            if match in played_matches:
-                already_played_matches.append(match)
-                print(f"Je ne sais pas si cette méthode marche ou aide : {match}")
-        return already_played_matches
-
     def change_list_to_tuple(self,played_matches):
-        set_played_matches = []
+        played_matches_tuples = []
         for elt in played_matches:
             match = tuple(elt)
-            set_played_matches.append(match)
-        return (set_played_matches) # à remonter pour ne faire qu'une fois. Et pourquoi ils ne sont pas en tuple dans la liste d'instance? 
+            played_matches_tuples.append(match)
+        return played_matches_tuples # à remonter pour ne faire qu'une fois. Et pourquoi ils ne sont pas en tuple dans la liste d'instance? 
 
-    def get_played_matches2(self,suggested_matches, set_played_matches):
+    def matches_not_ok(self,suggested_matches, played_matches):
+        """
+        Entrée : une liste de tuples
+        Renvoie True si les matches proposés n'ont pas été joués, False sinon"""
         set_propositions = set(suggested_matches)
-        result = set.intersection(set_propositions,set_played_matches) # = matchs déjà joués
+        result = set.intersection(set_propositions, set(played_matches)) # = matchs déjà joués
         print(f'matchs déjà joués dans les proposés : {result}')
+        if len(result) != 0:
+            return True
+        else:
+            return False
 
-    def propose_other_matches(self,result,sorted_names_list, set_played_matches):
+    def propose_other_matches(self,sorted_names_list, played_matches):
+        """ Si des matches parmis les proposés ont déjà été joués"""
         # le problème c'est que si il n'y a qu'un match déjà joué, on a plus d'adversaires à échanger !
-        if len(result) != 0: # donc si des matchs ont déjà été joués
-            suggested_matches = []
-            increment = 0
-            protagonists= sorted_names_list[0::2]
-            antagonists = sorted_names_list[1::2]
-            search_opponent = True
-            joueur_x = protagonists.pop(0)
-            while search_opponent:
-                search_opponent = False
-                match = set(joueur_x,antagonists[increment])
-                if match not in set_played_matches:
-                    antagonists.remove(antagonists[increment])
-                    suggested_matches.append(match)
-                else :
-                    increment += 1
-                    continue
+         # donc si des matchs ont déjà été joués
+        suggested_matches = []
+        protagonists= sorted_names_list[0::2]
+        search_opponent = len(protagonists)
+        antagonists = sorted_names_list[1::2]
+        joueur_x = protagonists.pop(0)
+        antagonist = antagonists[0]
+        test_opponent = antagonists[:]      
+        while len(suggested_matches) < search_opponent:
+            # for _ in range(search_opponent):
+            match = (joueur_x,antagonist)
+            print(f'Match proposé : {match}')
+            if self.matches_not_ok([match], played_matches) == False:
+                # if len(set.intersection(played_matches, set(match))) == 0:
+                antagonists.remove(antagonist)
+                suggested_matches.append(match)
+                test_opponent = antagonists[:]
+                if len(protagonists) > 0:
+                    joueur_x = protagonists.pop(0)
+                if len(antagonists) > 0:
+                    antagonist = antagonists[0]       
+            else :
+                test_opponent.remove(antagonist)
+                antagonist = test_opponent[0]
+                continue
+        
+        assert len(suggested_matches) == 4
+        return suggested_matches
 
         # trouver l'index de chaque dans la liste :
         #player_place_in_list_by_score = sorted_list.index(player)
@@ -715,20 +718,33 @@ if __name__ == "__main__":
 
     rapport = Report()
     tournois = rapport.get_tournaments_list()
-    print(tournois)
+    #print(tournois)
     
  
     database = Database()
 
-    # Rapidement mettre à jour une valeur :
     tournoi = "Tournoi des reines"
     tournoi = tournoi.upper()
-    #database.change("name", tournoi, "players",['ATOME','BARDOT','CRUZ','DOUILLET', 'ELITE', 'FEZ','GEANT','HULOT'])
-    database.change("name", tournoi, "matches",[])
-    database.change("name", tournoi, "shifts",[])
-    #database.change("name", tournoi, "number_of_rounds",4)
+
+    def reset_tournament(tournoi : str):
+        """Réinitialiser un tournoi après des tests"""
+        # Rapidement mettre à jour une valeur :
+        database.change("name", tournoi, "players",['ATOME','BARDOT','CRUZ','DOUILLET', 'ELITE', 'FEZ','GEANT','HULOT'])
+        database.change("name", tournoi, "matches",[])
+        database.change("name", tournoi, "shifts",[])
+        #database.change("name", tournoi, "number_of_rounds",4)
+
+    #reset_tournament(tournoi)
 
     #database.delete(tournoi)
 
     bidule = database.get_dict_from_db(tournoi)
     pprint(bidule)
+
+    match = [("A","B"), ("H","D"), ("C","G"), ("E","F")]
+    played_matches = [("A","E"), ("B","F"), ("C","G"), ("D","H"), ("F","D"),("A","G"),("C","H"),("E","B")]
+    shift = Shift("Tournoi des reines", 3)
+    sorted_names_list = ["A","B", "H","D","C","G","E","F"]
+
+    shift.matches_not_ok(match,played_matches)
+    shift.propose_other_matches(sorted_names_list, played_matches)
