@@ -84,7 +84,6 @@ class Serialization:
     def calculate_age(valeur):
         today = datetime.datetime.now()
         age = today.year - valeur.year - ((today.month, today.day) < (valeur.month, valeur.day))
-        print(age)
         return age
 
 
@@ -734,7 +733,7 @@ if __name__ == "__main__":
         database.change("name", tournoi, "shifts",[])
         #database.change("name", tournoi, "number_of_rounds",4)
 
-    #reset_tournament(tournoi)
+    reset_tournament(tournoi)
 
     #database.delete(tournoi)
 
@@ -746,5 +745,5 @@ if __name__ == "__main__":
     shift = Shift("Tournoi des reines", 3)
     sorted_names_list = ["A","B", "H","D","C","G","E","F"]
 
-    shift.matches_not_ok(match,played_matches)
-    shift.propose_other_matches(sorted_names_list, played_matches)
+    #shift.matches_not_ok(match,played_matches)
+    #shift.propose_other_matches(sorted_names_list, played_matches)

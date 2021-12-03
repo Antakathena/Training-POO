@@ -69,10 +69,12 @@ class MenuManager(Controller):
             answer = requested_manager.view.show() # ou self.show(requested_manager) plutôt?
             name = requested_manager.choices[answer]
 
-            if name.startswith("Menu" or "Liste"):
+            if name.startswith("Menu"):
                 requested_manager = ManagerFactory(name).make_menu()
-            elif name.startswith("Rapport:"):
-                requested_manager = ManagerFactory(name).make_report()
+            elif name.startswith("Liste"):
+                report = ReportManager()
+                report.react_to_answer()
+                requested_manager = ManagerFactory("Menu Rapports").make_menu()
             elif name.startswith("Selectionner les joueurs"):
                 tournament = TournamentManager()
                 tournament.select_players()
@@ -90,7 +92,6 @@ class MenuManager(Controller):
                 if "tournoi" in name:
                     TournamentManager(answers).execute()
                     requested_manager = ManagerFactory("Menu tournois").make_menu()
-
             
     def show(self, requested_manager : Controller):
         requested_manager.view.show()
@@ -104,6 +105,50 @@ class MenuManager(Controller):
 
    
         # form ou menu, ou (?) rapport controleur = ManagerFactory.make(le nom de l'IU à générer)
+
+
+class ReportManager(Controller):
+    #Obligatoires pour init : titre du rapport, optionnel : tournoi (si infos tournoi) et vue d'office reportview ou pas?
+    name : str
+    start : int = 1
+    
+    tournament : str = None
+    pass
+
+    """
+    def react_to_answer(self):
+        #affiche un rapport en fonction de la demande de l'utilisateur
+        infos = P4Modeles.Report()
+        view = P4Vues.ReportView(self.name)
+
+        # rapports liés à un tournois :
+        if self.tournament != None:
+            database = P4Modeles.Database()
+            tournoi_dict: dict = database.get_dict_from_db(self.tournament)
+            tournament_players = tournoi_dict["players"]
+            controleurs = [
+                ("Liste des joueurs par ordre alphabétique", infos.sort_by_name(tournament_players)[1]),
+                ("Liste des joueurs par classement", infos.sort_by_rating(tournament_players)[1]),
+                ("Liste des matchs", tournoi_dict["matches"] )
+                ("Liste des tours (déroulé du tournoi)", tournoi_dict["shifts"])
+            ]
+        # rapport généraux :
+        else :
+            controleurs = [
+                ("Liste des tournois", infos.get_tournaments_list()),
+                ("Liste des joueurs par ordre alphabétique", infos.sort_by_name(infos.get_players_list())[1]),
+                ("Liste des joueurs par classement", infos.sort_by_rating(infos.get_players_list())[1]),    
+            ]
+
+        for controleur in controleurs :
+            if self.name == controleur[0]:
+                action = view.show(controleur[1])
+                return action()
+            else :
+                print("Pas de contrôleur associé à ce nom")
+                return False
+
+        """  
 
 @dataclass
 class FormManager(Controller):
@@ -162,10 +207,7 @@ class ManagerFactory:
             start = self.start
         )
 
-    def make_report(self):
-        #return ReportManager(args, contenu)
-        return NotImplementedError
-        
+
 class PlayerManager(Controller) :
     def __init__ (self, answers = None):
         self.answers = answers
@@ -183,7 +225,8 @@ class PlayerManager(Controller) :
             print("Le joueur doit avoir entre 18 et 99 ans.")
         # ça ça ne marche pas, comment faire que les exceptions dans le modèle soient traduites par un print dans la vue?
         else:
-            P4Modeles.Database.insert(player)
+            database = P4Modeles.Database()
+            database.insert(dataclass_instance_to_insert = player)
             # _logger.debug("Joueur ajouté à la base ...")
             print(f"\nJoueur ajouté à la base de donnée : {player}\n") 
 
@@ -192,6 +235,7 @@ class PlayerManager(Controller) :
         self.add_new()
         
         # def execute? insert dans tinydb
+
 
 class TournamentManager(Controller) :
     def __init__ (self, answers=None):

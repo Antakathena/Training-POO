@@ -9,9 +9,9 @@ MENUS_CHOICES = {
     "Menu tournois": ("Entrer un nouveau tournoi", "Modifier un tournoi", "Selectionner les joueurs", "Lancer le tournoi","Menu principal"),
     "Menu lancer le tournoi": ("Entrer un nouveau tournoi","Lancer le tournoi","Menu principal"),
     "Menu lancer le round": ("Lancer le round","Menu principal"),
-    "Menu des rapports":("Liste des tournois", "Liste des joueurs par classement","Liste des joueurs par ordre alphabétique","Menu principal"),
-    "Liste des informations du tournoi" : ("Liste des joueurs par ordre alphabétique", "Liste des joueurs par classement",
-        "Liste des matchs", "Liste des tous (déroulé du tournoi)","Menu principal")
+    "Menu rapports":("Liste des tournois", "Menu informations tournois", "Liste des joueurs par classement","Liste des joueurs par ordre alphabétique","Menu principal"),
+    "Menu informations tournois" : ("Liste des joueurs par ordre alphabétique", "Liste des joueurs par classement",
+        "Liste des matchs", "Liste des tours (déroulé du tournoi)","Menu principal")
 }
 
 FORMS_FIELDS = {
@@ -166,6 +166,7 @@ class FormView(View):
             answer.append(current)
         return answer
 
+
 class TournamentView(View):
     def __init__(self, name = f"Lancement du tournoi"):
         super().__init__(name)
@@ -236,4 +237,14 @@ class TournamentView(View):
 
         #new_player_form = FormView("Entrer un nouveau joueur")
         #new_player_form.show()
+
+
+class ReportView(View):
+    def __init__(self, name, start=1):
+        super().__init__(name)
+        self.start = start
+
+    def show(self):
+        super().show()
+    
 
